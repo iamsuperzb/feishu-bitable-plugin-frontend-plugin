@@ -147,8 +147,12 @@ export const useQuota = (options: UseQuotaOptions) => {
       })
 
       // 统一使用UTC 00:00的重置时间提示
+      const fallbackQuota = errorData.quota ?? quotaInfo?.quota
+      const fallbackRemaining = errorData.remaining ?? 0
       const messageText = errorData.message ||
-        `今日数据点已用完（${errorData.remaining ?? 0}/${errorData.quota ?? 30}个），将于次日00:00（UTC）自动重置`
+        (typeof fallbackQuota === 'number'
+          ? `今日数据点已用完（${fallbackRemaining}/${fallbackQuota}个），将于次日00:00（UTC）自动重置`
+          : '今日数据点已用完，将于次日00:00（UTC）自动重置')
       setMessage(messageText)
       keywordShouldStopRef.current = true
       accountShouldStopRef.current = true
