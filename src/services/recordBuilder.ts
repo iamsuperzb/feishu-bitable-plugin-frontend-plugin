@@ -314,7 +314,20 @@ export const buildRecord = async <T = unknown>(
 ): Promise<Record<string, IOpenCellValue> | null> => {
   // 如果数据包含商品检测所需的字段，自动执行检测
   const rawData = data as Record<string, unknown>
-  if (!context.commerce && (rawData.anchors || rawData.bottom_products || rawData.products_info)) {
+  if (
+    !context.commerce
+    && (
+      rawData.anchors
+      || rawData.anchor_info
+      || rawData.bottom_products
+      || rawData.products_info
+      || rawData.right_products
+      || rawData.has_commerce_goods
+      || rawData.existed_commerce_goods
+      || rawData.ecommerce_goods
+      || rawData.commerce_info
+    )
+  ) {
     context.commerce = commerceFromAweme(rawData)
   }
 

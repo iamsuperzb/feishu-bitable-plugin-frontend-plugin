@@ -154,6 +154,18 @@ interface UserVideoData {
     collect_count: number;
   };
   post_type: string;
+  anchors?: AnchorItem[];
+  anchor_info?: AnchorItem[];
+  bottom_products?: unknown[];
+  products_info?: unknown[];
+  right_products?: unknown[];
+  has_commerce_goods?: boolean;
+  existed_commerce_goods?: boolean;
+  ecommerce_goods?: boolean;
+  commerce_info?: {
+    branded_content_type: number;
+    bc_label_test_text?: string;
+  };
   commerce?: CommerceResult;
 }
 
@@ -922,6 +934,15 @@ function App() {
                   shareCount: awemeInfo.statistics?.share_count || 0,
                   collectCount: awemeInfo.statistics?.collect_count || 0
                 },
+                anchors: awemeInfo.anchors,
+                anchor_info: awemeInfo.anchor_info,
+                bottom_products: awemeInfo.bottom_products,
+                products_info: awemeInfo.products_info,
+                right_products: awemeInfo.right_products,
+                has_commerce_goods: awemeInfo.has_commerce_goods,
+                existed_commerce_goods: awemeInfo.existed_commerce_goods,
+                ecommerce_goods: awemeInfo.ecommerce_goods,
+                commerce_info: awemeInfo.commerce_info,
                 commerce
               }
             })
@@ -1224,6 +1245,15 @@ function App() {
                   collect_count: item.statistics?.collect_count || 0
                 },
                 post_type: commerce.isCommerce ? '带货视频' : '内容视频',
+                anchors: item.anchors,
+                anchor_info: item.anchor_info,
+                bottom_products: item.bottom_products,
+                products_info: item.products_info,
+                right_products: item.right_products,
+                has_commerce_goods: item.has_commerce_goods,
+                existed_commerce_goods: item.existed_commerce_goods,
+                ecommerce_goods: item.ecommerce_goods,
+                commerce_info: item.commerce_info,
                 commerce
               });
 
