@@ -521,39 +521,66 @@ function App() {
     ): Promise<File | undefined> => {
       if (!coverUrl) return undefined
       const shouldConvert = options?.convert ?? false
-      try {
-        const response = shouldConvert
-          ? await fetchCoverAsJpg(coverUrl, fetchWithIdentity, {
-            timeout: TIMEOUT_CONFIG.SEARCH,
-            signal: options?.signal
-          })
-          : await fetchCoverOriginal(coverUrl, fetchWithIdentity, {
-            timeout: TIMEOUT_CONFIG.SEARCH,
-            signal: options?.signal
-          })
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => '')
-          console.warn('[cover] 获取封面失败:', response.status, response.statusText, errorText)
-          return undefined
-        }
-        const buffer = await response.arrayBuffer()
-        if (!buffer.byteLength) {
-          console.warn('[cover] 封面内容为空，跳过')
-          return undefined
-        }
-        const contentType = shouldConvert
-          ? 'image/jpeg'
-          : response.headers.get('content-type') || 'image/jpeg'
-        const blob = new Blob([buffer], { type: contentType })
-        return new File([blob], fileName, { type: contentType })
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
+      const maxAttempts = 3
+      const baseDelayMs = 400
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (options?.signal?.aborted) {
           console.info('[cover] 请求已中止')
           return undefined
         }
-        console.warn('[cover] 获取封面异常:', error)
-        return undefined
+        try {
+          const response = shouldConvert
+            ? await fetchCoverAsJpg(coverUrl, fetchWithIdentity, {
+              timeout: TIMEOUT_CONFIG.SEARCH,
+              signal: options?.signal
+            })
+            : await fetchCoverOriginal(coverUrl, fetchWithIdentity, {
+              timeout: TIMEOUT_CONFIG.SEARCH,
+              signal: options?.signal
+            })
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => '')
+            if (attempt < maxAttempts) {
+              const delayMs = baseDelayMs * Math.pow(2, attempt - 1)
+              console.warn(`[cover] 获取封面失败(${response.status})，${delayMs}ms 后重试`)
+              await sleep(delayMs)
+              continue
+            }
+            console.warn('[cover] 获取封面失败:', response.status, response.statusText, errorText)
+            return undefined
+          }
+          const buffer = await response.arrayBuffer()
+          if (!buffer.byteLength) {
+            if (attempt < maxAttempts) {
+              const delayMs = baseDelayMs * Math.pow(2, attempt - 1)
+              console.warn(`[cover] 封面内容为空，${delayMs}ms 后重试`)
+              await sleep(delayMs)
+              continue
+            }
+            console.warn('[cover] 封面内容为空，跳过')
+            return undefined
+          }
+          const contentType = shouldConvert
+            ? 'image/jpeg'
+            : response.headers.get('content-type') || 'image/jpeg'
+          const blob = new Blob([buffer], { type: contentType })
+          return new File([blob], fileName, { type: contentType })
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError' && options?.signal?.aborted) {
+            console.info('[cover] 请求已中止')
+            return undefined
+          }
+          if (attempt < maxAttempts) {
+            const delayMs = baseDelayMs * Math.pow(2, attempt - 1)
+            console.warn(`[cover] 获取封面异常，${delayMs}ms 后重试`)
+            await sleep(delayMs)
+            continue
+          }
+          console.warn('[cover] 获取封面异常:', error)
+          return undefined
+        }
       }
+      return undefined
     },
     [fetchWithIdentity]
   )
