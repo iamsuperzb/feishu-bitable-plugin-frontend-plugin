@@ -4,11 +4,10 @@
  * 管理主 Header 的粘性滚动效果
  * 职责：
  * - 监听主 Header 尺寸变化
- * - 监听滚动事件并计算 Header 缩放比例
  * - 判断 Header 是否已吸顶
  *
  * @remarks
- * 实现了平滑的缩放动画效果（ease-out cubic），滚动 0-80px 时 Header 从 100% 缩小至 88%
+ * 仅控制吸顶状态，不做缩放处理
  */
 
 import { useState, useRef, useEffect } from 'react'
@@ -24,13 +23,12 @@ import { useState, useRef, useEffect } from 'react'
  *   appRef,
  *   mainHeaderRef,
  *   mainHeaderHeight,
- *   headerScale,
  *   headerPinned
  * } = useStickyHeader()
  *
  * return (
  *   <div ref={appRef}>
- *     <div ref={mainHeaderRef} style={{ transform: `scale(${headerScale})` }}>
+ *     <div ref={mainHeaderRef}>
  *       主 Header
  *     </div>
  *     <div style={{ top: `${mainHeaderHeight}px` }}>
@@ -50,9 +48,6 @@ export const useStickyHeader = () => {
 
   // 主Header的实际高度（px）
   const [mainHeaderHeight, setMainHeaderHeight] = useState(0)
-
-  // Header缩放比例（1.0正常，0.88最小）
-  const [headerScale, setHeaderScale] = useState(1)
 
   // Header是否已吸顶
   const [headerPinned, setHeaderPinned] = useState(false)
@@ -79,8 +74,8 @@ export const useStickyHeader = () => {
     return () => observer.disconnect()
   }, [])
 
-  // ==================== 监听滚动控制Header缩放动画 ====================
-  // 使用requestAnimationFrame节流，滚动0-80px时渐进缩小至88%
+  // ==================== 监听滚动控制Header吸顶状态 ====================
+  // 使用requestAnimationFrame节流
   useEffect(() => {
     // 直接获取#root元素作为滚动容器
     const scrollElement = document.getElementById('root')
@@ -100,19 +95,6 @@ export const useStickyHeader = () => {
         scrollRafRef.current = null
 
         const scrollY = scrollElement.scrollTop
-
-        // ✅ 使用保存的初始位置，而不是动态获取（避免sticky元素offsetTop变化）
-        // 计算线性进度：0-80px滚动距离映射到0-1
-        const progress = Math.min(Math.max((scrollY - initialHeaderTop) / 80, 0), 1)
-
-        // 应用ease-out cubic缓动曲线（快速响应，平稳结束）
-        const easedProgress = 1 - Math.pow(1 - progress, 3)
-
-        // 缩放比例：1.0 → 0.88 (缩小12%)
-        const nextScale = Number((1 - easedProgress * 0.12).toFixed(3))
-
-        // 避免频繁更新state（只有变化超过0.01时才更新）
-        setHeaderScale(prev => (Math.abs(prev - nextScale) >= 0.01 ? nextScale : prev))
 
         // 判断是否已吸顶（滚动超过header顶部2px）
         const pinned = scrollY > initialHeaderTop + 2
@@ -137,7 +119,6 @@ export const useStickyHeader = () => {
     appRef,
     mainHeaderRef,
     mainHeaderHeight,
-    headerScale,
     headerPinned
   }
 }

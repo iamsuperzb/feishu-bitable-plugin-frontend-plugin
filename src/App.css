@@ -21,7 +21,6 @@
   overflow-x: hidden;
   /* CSS变量：用于驱动粘性Header布局 */
   --main-header-height: 0px;
-  --header-scale: 1;
   --section-sticky-top: 6px;
 }
 
@@ -43,7 +42,7 @@ h1 {
 }
 
 /* ============================================
-   粘性主Header - 渐进缩小动画
+   粘性主Header - 吸顶固定
    ============================================ */
 
 /* 标题样式调整 */
@@ -62,23 +61,17 @@ h1 {
   z-index: 140;
   width: 100%;
   margin: 0 0 8px;
-  padding: 10px 20px 8px;
+  padding: 10px 8px 8px;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.92));
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   /* 背景不缩放，保持满宽满高 */
-  transition: padding 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  transition: box-shadow 0.25s ease, background-color 0.25s ease;
 }
 
 /* Header吸顶后的样式 */
 .main-header.pinned {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  padding: 8px 12px 6px;
-}
-
-/* 缩小后的标题字体大小 */
-.main-header.pinned .app-title {
-  font-size: 16px;
 }
 
 /* 暗色主题适配 */
@@ -92,10 +85,6 @@ h1 {
   flex-direction: column;
   gap: 10px;
   align-items: stretch;
-  transform-origin: top center;
-  transform: scale(var(--header-scale, 1));
-  transition: transform 0.25s ease;
-  will-change: transform;
 }
 
 h2 {
@@ -805,6 +794,8 @@ button:disabled {
 .quota-card {
   margin: 8px 0;
   padding: 10px 12px;
+  width: 100%;
+  box-sizing: border-box;
   background-color: rgba(0, 0, 0, 0.02);
   border: 1px solid #e8e8e8;
   border-radius: 6px;

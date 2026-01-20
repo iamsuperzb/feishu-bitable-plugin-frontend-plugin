@@ -373,7 +373,7 @@ function App() {
   })
 
   // 粘性 Header 管理
-  const { appRef, mainHeaderRef, mainHeaderHeight, headerScale, headerPinned } = useStickyHeader()
+  const { appRef, mainHeaderRef, mainHeaderHeight, headerPinned } = useStickyHeader()
 
   // 关键词采集字段选择
   const [keywordSelectedFields, setKeywordSelectedFields] = useState<{[key: string]: boolean}>({
@@ -2245,9 +2245,7 @@ function App() {
         style={{
           // 通过CSS变量驱动子元素的sticky定位
           '--main-header-height': `${mainHeaderHeight}px`,
-          '--header-scale': headerScale,
-          // 重要：二级header的top = 主header的原始高度（不乘以scale）
-          // 因为transform: scale()不会改变元素的实际布局空间
+          // 二级header的top = 主header的实际高度
           '--section-sticky-top': `${mainHeaderHeight + 6}px`
         } as CSSProperties}
       >
