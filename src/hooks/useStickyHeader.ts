@@ -38,19 +38,28 @@ import { useState, useRef, useEffect } from 'react'
  * )
  * ```
  */
-export const useStickyHeader = () => {
+type UseStickyHeaderOptions = {
+  onScroll?: (scrollTop: number) => void
+}
+
+export const useStickyHeader = (options: UseStickyHeaderOptions = {}) => {
   // 主容器和主Header的引用
   const appRef = useRef<HTMLDivElement>(null)
   const mainHeaderRef = useRef<HTMLDivElement>(null)
 
   // 滚动动画帧的引用，用于requestAnimationFrame节流
   const scrollRafRef = useRef<number | null>(null)
+  const onScrollRef = useRef<UseStickyHeaderOptions['onScroll']>(options.onScroll)
 
   // 主Header的实际高度（px）
   const [mainHeaderHeight, setMainHeaderHeight] = useState(0)
 
   // Header是否已吸顶
   const [headerPinned, setHeaderPinned] = useState(false)
+
+  useEffect(() => {
+    onScrollRef.current = options.onScroll
+  }, [options.onScroll])
 
   // ==================== 监听主Header尺寸变化 ====================
   // 使用ResizeObserver动态监听主Header高度，驱动二级Header的sticky top偏移
@@ -99,6 +108,7 @@ export const useStickyHeader = () => {
         // 判断是否已吸顶（滚动超过header顶部2px）
         const pinned = scrollY > initialHeaderTop + 2
         setHeaderPinned(prev => (prev === pinned ? prev : pinned))
+        onScrollRef.current?.(scrollY)
       })
     }
 

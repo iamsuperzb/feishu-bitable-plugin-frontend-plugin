@@ -372,14 +372,6 @@ function App() {
     setLoading
   })
 
-  // 顶部固定区域管理
-  const {
-    appRef,
-    mainHeaderRef: quotaStickyRef,
-    mainHeaderHeight: quotaStickyHeight,
-    headerPinned: quotaStickyPinned
-  } = useStickyHeader()
-
   // 关键词采集字段选择
   const [keywordSelectedFields, setKeywordSelectedFields] = useState<{[key: string]: boolean}>({
     '关键词': true,
@@ -637,6 +629,60 @@ function App() {
     accountShouldStopRef,
     audioShouldStopRef
   })
+
+  const quotaDetailsRef = useRef<HTMLDivElement>(null)
+  const quotaDetailsHeightRef = useRef(0)
+  const [quotaDetailsHeight, setQuotaDetailsHeight] = useState(0)
+  const quotaOpenScrollTopRef = useRef(0)
+  const quotaScrollTopRef = useRef(0)
+  const [quotaCollapseProgress, setQuotaCollapseProgress] = useState(0)
+
+  useEffect(() => {
+    if (!quotaDetailsOpen) {
+      setQuotaCollapseProgress(0)
+      return
+    }
+
+    quotaOpenScrollTopRef.current = quotaScrollTopRef.current
+    setQuotaCollapseProgress(0)
+
+    const frame = window.requestAnimationFrame(() => {
+      const detailsHeight = quotaDetailsRef.current?.scrollHeight ?? 0
+      quotaDetailsHeightRef.current = detailsHeight
+      setQuotaDetailsHeight(detailsHeight)
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [quotaDetailsOpen])
+
+  const handleQuotaScroll = useCallback(
+    (scrollTop: number) => {
+      quotaScrollTopRef.current = scrollTop
+      if (!quotaDetailsOpen) return
+
+      const collapseDistance = quotaDetailsHeightRef.current > 0 ? quotaDetailsHeightRef.current : 80
+      const delta = Math.max(0, scrollTop - quotaOpenScrollTopRef.current)
+      const nextProgress = Math.min(delta / collapseDistance, 1)
+
+      setQuotaCollapseProgress(prev => {
+        const nextValue = Math.max(prev, nextProgress)
+        return Math.abs(nextValue - prev) >= 0.01 ? nextValue : prev
+      })
+
+      if (nextProgress >= 1) {
+        setQuotaDetailsOpen(false)
+      }
+    },
+    [quotaDetailsOpen, setQuotaDetailsOpen]
+  )
+
+  // 顶部固定区域管理
+  const {
+    appRef,
+    mainHeaderRef: quotaStickyRef,
+    mainHeaderHeight: quotaStickyHeight,
+    headerPinned: quotaStickyPinned
+  } = useStickyHeader({ onScroll: handleQuotaScroll })
 
   // 处理关键词字段选择
   const handleKeywordFieldChange = (fieldName: string) => {
@@ -2242,6 +2288,16 @@ function App() {
     setAccountNewTableName(getDefaultAccountTableName(resolvedUsername.trim()))
   }, [username, accountTargetTable, accountTableNameAuto])
 
+  const quotaDetailVisibility = quotaDetailsOpen ? Math.max(0, 1 - quotaCollapseProgress) : 0
+  const quotaDetailSpacing = Math.round(8 * quotaDetailVisibility)
+  const quotaDetailStyle = {
+    maxHeight: `${Math.max(0, Math.round(quotaDetailsHeight * quotaDetailVisibility))}px`,
+    opacity: quotaDetailVisibility,
+    marginTop: `${quotaDetailSpacing}px`,
+    paddingTop: `${quotaDetailSpacing}px`,
+    borderTopWidth: quotaDetailVisibility > 0.05 ? '1px' : '0px'
+  } as CSSProperties
+
   return (
     <Fragment>
       <div
@@ -2300,7 +2356,7 @@ function App() {
                 </button>
               </div>
 
-              <div className={`quota-card-details ${quotaDetailsOpen ? 'open' : ''}`}>
+              <div ref={quotaDetailsRef} className="quota-card-details" style={quotaDetailStyle}>
                 <div className="quota-detail-item">
                   <span className="quota-detail-label">{tr('quota.keyword.label')}</span>
                   <span className="quota-detail-value">{tr('quota.keyword.desc')}</span>
