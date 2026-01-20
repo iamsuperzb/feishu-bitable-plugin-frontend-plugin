@@ -16,7 +16,7 @@ import { useState } from 'react'
 /**
  * 区域类型定义
  */
-export type SectionKey = 'keyword' | 'account' | 'accountInfo' | 'audio'
+export type SectionKey = 'keyword' | 'account' | 'accountInfo' | 'audio' | 'selfCheck'
 
 /**
  * UI 状态管理 Hook
