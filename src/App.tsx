@@ -259,7 +259,7 @@ const KEYWORD_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '带货产品信息', type: FieldType.Text }
 ];
 
-const KEYWORD_REQUIRED_FIELDS = new Set(['关键词'])
+const KEYWORD_REQUIRED_FIELDS = new Set(['关键词', '视频链接'])
 
 const ACCOUNT_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '视频标题', type: FieldType.Text },  // 主字段：视频标题（Text类型）
@@ -283,7 +283,7 @@ const ACCOUNT_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '带货产品信息', type: FieldType.Text }
 ];
 
-const ACCOUNT_REQUIRED_FIELDS = new Set(['视频标题'])
+const ACCOUNT_REQUIRED_FIELDS = new Set(['视频标题', '视频链接'])
 
 const ACCOUNT_INFO_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: 'TT账户名称', type: FieldType.Text },
