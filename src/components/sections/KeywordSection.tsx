@@ -17,6 +17,7 @@ interface KeywordSectionProps {
   quotaRemaining: number | null | undefined
   keywordEstimatedCost: number
   keywordSelectedFields: Record<string, boolean>
+  keywordRequiredFields: Set<string>
   setQuery: (val: string) => void
   setVtime: (val: string) => void
   setRegion: (val: string) => void
@@ -66,6 +67,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
     quotaRemaining,
     keywordEstimatedCost,
     keywordSelectedFields,
+    keywordRequiredFields,
     setQuery,
     setVtime,
     setRegion,
@@ -245,11 +247,12 @@ export default function KeywordSection(props: KeywordSectionProps) {
                 <label>
                   <input
                     type="checkbox"
-                    checked={keywordSelectedFields[fieldName] || false}
+                    checked={keywordRequiredFields.has(fieldName) || keywordSelectedFields[fieldName] || false}
                     onChange={() => handleKeywordFieldChange(fieldName)}
-                    disabled={isCollecting}
+                    disabled={isCollecting || keywordRequiredFields.has(fieldName)}
                   />
                   {tr(fieldName)}
+                  {keywordRequiredFields.has(fieldName) && ` (${tr('必选')})`}
                 </label>
               </div>
             ))}

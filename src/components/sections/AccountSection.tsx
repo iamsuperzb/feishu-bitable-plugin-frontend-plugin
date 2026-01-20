@@ -16,6 +16,7 @@ interface AccountSectionProps {
   quotaRemaining: number | null | undefined
   accountEstimatedCost: number
   accountSelectedFields: Record<string, boolean>
+  accountRequiredFields: Set<string>
   setUsername: (val: string) => void
   setUserRegion: (val: string) => void
   setAccountTargetTable: (val: TableTarget) => void
@@ -64,6 +65,7 @@ export default function AccountSection(props: AccountSectionProps) {
     quotaRemaining,
     accountEstimatedCost,
     accountSelectedFields,
+    accountRequiredFields,
     setUsername,
     setUserRegion,
     setAccountTargetTable,
@@ -227,11 +229,12 @@ export default function AccountSection(props: AccountSectionProps) {
                 <label>
                   <input
                     type="checkbox"
-                    checked={accountSelectedFields[fieldName] || false}
+                    checked={accountRequiredFields.has(fieldName) || accountSelectedFields[fieldName] || false}
                     onChange={() => handleAccountFieldChange(fieldName)}
-                    disabled={isCollecting}
+                    disabled={isCollecting || accountRequiredFields.has(fieldName)}
                   />
                   {tr(fieldName)}
+                  {accountRequiredFields.has(fieldName) && ` (${tr('必选')})`}
                 </label>
               </div>
             ))}

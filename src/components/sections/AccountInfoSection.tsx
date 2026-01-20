@@ -30,6 +30,7 @@ interface AccountInfoSectionProps {
   accountInfoCostPerRow: number
   quotaRemaining: number | null | undefined
   accountInfoSelectedFields: Record<string, boolean>
+  accountInfoRequiredFields: Set<string>
   handleAccountInfoFieldChange: (fieldName: string) => void
   handleAccountInfoFetch: () => void
   handleAccountInfoStop: () => void
@@ -81,6 +82,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
     accountInfoCostPerRow,
     quotaRemaining,
     accountInfoSelectedFields,
+    accountInfoRequiredFields,
     handleAccountInfoFieldChange,
     handleAccountInfoFetch,
     handleAccountInfoStop
@@ -317,11 +319,12 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                 <label>
                   <input
                     type="checkbox"
-                    checked={accountInfoSelectedFields[fieldName] || false}
+                    checked={accountInfoRequiredFields.has(fieldName) || accountInfoSelectedFields[fieldName] || false}
                     onChange={() => handleAccountInfoFieldChange(fieldName)}
-                    disabled={accountInfoLoading}
+                    disabled={accountInfoLoading || accountInfoRequiredFields.has(fieldName)}
                   />
                   {tr(fieldName)}
+                  {accountInfoRequiredFields.has(fieldName) && ` (${tr('必选')})`}
                 </label>
               </div>
             ))}

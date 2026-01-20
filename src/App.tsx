@@ -259,6 +259,8 @@ const KEYWORD_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '带货产品信息', type: FieldType.Text }
 ];
 
+const KEYWORD_REQUIRED_FIELDS = new Set(['关键词'])
+
 const ACCOUNT_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '视频标题', type: FieldType.Text },  // 主字段：视频标题（Text类型）
   { field_name: '视频链接', type: FieldType.Url },  // 超链接类型，可点击
@@ -281,6 +283,8 @@ const ACCOUNT_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '带货产品信息', type: FieldType.Text }
 ];
 
+const ACCOUNT_REQUIRED_FIELDS = new Set(['视频标题'])
+
 const ACCOUNT_INFO_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: 'TT账户名称', type: FieldType.Text },
   { field_name: 'TT账户URL', type: FieldType.Url },
@@ -299,10 +303,24 @@ const ACCOUNT_INFO_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '最近拉取时间', type: FieldType.DateTime },
 ];
 
+const ACCOUNT_INFO_REQUIRED_FIELDS = new Set(['TT账户名称'])
+
 const AUDIO_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '转写文案', type: FieldType.Text },  // 主字段：转写文案（Text类型）
   { field_name: '视频链接', type: FieldType.Url }   // 超链接类型，可点击
 ];
+
+const ensureRequiredSelections = (
+  selectedFields: Record<string, boolean>,
+  requiredFields: Set<string>
+) => {
+  if (!requiredFields.size) return selectedFields
+  const normalized = { ...selectedFields }
+  for (const fieldName of requiredFields) {
+    normalized[fieldName] = true
+  }
+  return normalized
+}
 
 const logEnvConfig = () => {
   const val = import.meta.env.VITE_API_BASE_URL
@@ -617,6 +635,7 @@ function App() {
 
   // 处理关键词字段选择
   const handleKeywordFieldChange = (fieldName: string) => {
+    if (KEYWORD_REQUIRED_FIELDS.has(fieldName)) return
     setKeywordSelectedFields(prev => ({
       ...prev,
       [fieldName]: !prev[fieldName]
@@ -625,6 +644,7 @@ function App() {
   
   // 处理账号字段选择
   const handleAccountFieldChange = (fieldName: string) => {
+    if (ACCOUNT_REQUIRED_FIELDS.has(fieldName)) return
     setAccountSelectedFields(prev => ({
       ...prev,
       [fieldName]: !prev[fieldName]
@@ -633,6 +653,7 @@ function App() {
 
   // 处理账号信息字段选择
   const handleAccountInfoFieldChange = (fieldName: string) => {
+    if (ACCOUNT_INFO_REQUIRED_FIELDS.has(fieldName)) return
     setAccountInfoSelectedFields(prev => ({
       ...prev,
       [fieldName]: !prev[fieldName]
@@ -803,9 +824,10 @@ function App() {
         }
       }
 
-      const keywordFieldMetaList = await ensureFields(targetTable, KEYWORD_FIELD_CONFIGS, keywordSelectedFields)
+      const keywordSelection = ensureRequiredSelections(keywordSelectedFields, KEYWORD_REQUIRED_FIELDS)
+      const keywordFieldMetaList = await ensureFields(targetTable, KEYWORD_FIELD_CONFIGS, keywordSelection)
       await refreshFields()
-      let keywordWriters = await buildFieldWriters(targetTable, KEYWORD_FIELD_CONFIGS, keywordFieldMetaList, keywordSelectedFields)
+      let keywordWriters = await buildFieldWriters(targetTable, KEYWORD_FIELD_CONFIGS, keywordFieldMetaList, keywordSelection)
       // 收集已有视频链接用于去重
       const existingLinks = await collectExistingKeys(targetTable, '视频链接', normalizeUrlKey, { maxScan: 5000 })
       let totalWritten = 0
@@ -956,7 +978,7 @@ function App() {
               const recordsToInsert: Record<string, IOpenCellValue>[] = [];
               if (!Object.keys(keywordWriters).length) {
                 const refreshedMeta = await targetTable.getFieldMetaList();
-                keywordWriters = await buildFieldWriters(targetTable, KEYWORD_FIELD_CONFIGS, refreshedMeta, keywordSelectedFields);
+                keywordWriters = await buildFieldWriters(targetTable, KEYWORD_FIELD_CONFIGS, refreshedMeta, keywordSelection);
                 await refreshFields();
               }
               const coverEnabled = Boolean(keywordWriters['视频封面'])
@@ -1115,9 +1137,10 @@ function App() {
         }
       }
 
-      const accountFieldMetaList = await ensureFields(targetTable, ACCOUNT_FIELD_CONFIGS, accountSelectedFields);
+      const accountSelection = ensureRequiredSelections(accountSelectedFields, ACCOUNT_REQUIRED_FIELDS)
+      const accountFieldMetaList = await ensureFields(targetTable, ACCOUNT_FIELD_CONFIGS, accountSelection);
       await refreshFields();
-      let accountWriters = await buildFieldWriters(targetTable, ACCOUNT_FIELD_CONFIGS, accountFieldMetaList, accountSelectedFields);
+      let accountWriters = await buildFieldWriters(targetTable, ACCOUNT_FIELD_CONFIGS, accountFieldMetaList, accountSelection);
       console.log('[DEBUG 账号采集] accountWriters 包含的字段:', Object.keys(accountWriters))
       console.log('[DEBUG 账号采集] "视频链接" 字段是否在 writers 中:', '视频链接' in accountWriters)
 
@@ -1277,7 +1300,7 @@ function App() {
               const recordsToInsert: Record<string, IOpenCellValue>[] = [];
               if (!Object.keys(accountWriters).length) {
                 const refreshedMeta = await targetTable.getFieldMetaList();
-                accountWriters = await buildFieldWriters(targetTable, ACCOUNT_FIELD_CONFIGS, refreshedMeta, accountSelectedFields);
+                accountWriters = await buildFieldWriters(targetTable, ACCOUNT_FIELD_CONFIGS, refreshedMeta, accountSelection);
                 await refreshFields();
               }
               const coverEnabled = Boolean(accountWriters['视频封面'])
@@ -1396,6 +1419,11 @@ function App() {
       return
     }
 
+    const accountInfoSelection = ensureRequiredSelections(
+      accountInfoSelectedFields,
+      ACCOUNT_INFO_REQUIRED_FIELDS
+    )
+
     // 包装 fetchAccountInfoApi，处理 Response 并返回解析后的数据
     const fetchAccountInfo = async (name: string): Promise<AccountInfoResponse> => {
       const response = await fetchAccountInfoApi(name, fetchWithIdentity, { timeout: TIMEOUT_CONFIG.SEARCH })
@@ -1449,9 +1477,9 @@ function App() {
           }
         }
 
-        const fieldMetaList = await ensureFields(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, accountInfoSelectedFields)
+        const fieldMetaList = await ensureFields(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, accountInfoSelection)
         await refreshFields()
-        let writers = await buildFieldWriters(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, fieldMetaList, accountInfoSelectedFields)
+        let writers = await buildFieldWriters(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, fieldMetaList, accountInfoSelection)
         writers = await attachPrimaryNameWriter(targetTable, fieldMetaList, writers)
         const isNewTargetTable = accountInfoColumnTargetTable === 'new'
         const seenAccounts = new Set<string>()
@@ -1626,9 +1654,9 @@ function App() {
           return
         }
 
-        const fieldMetaList = await ensureFields(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, accountInfoSelectedFields)
+        const fieldMetaList = await ensureFields(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, accountInfoSelection)
         await refreshFields()
-        let writers = await buildFieldWriters(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, fieldMetaList, accountInfoSelectedFields)
+        let writers = await buildFieldWriters(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, fieldMetaList, accountInfoSelection)
         writers = await attachPrimaryNameWriter(targetTable, fieldMetaList, writers)
 
         // 获取空行（新表直接追加，不扫描）
@@ -2286,6 +2314,7 @@ function App() {
           quotaRemaining={quotaInfo?.remaining}
           keywordEstimatedCost={keywordEstimatedCost}
           keywordSelectedFields={keywordSelectedFields}
+          keywordRequiredFields={KEYWORD_REQUIRED_FIELDS}
           setQuery={setQuery}
           setVtime={setVtime}
           setRegion={setRegion}
@@ -2312,6 +2341,7 @@ function App() {
           quotaRemaining={quotaInfo?.remaining}
           accountEstimatedCost={accountEstimatedCost}
           accountSelectedFields={accountSelectedFields}
+          accountRequiredFields={ACCOUNT_REQUIRED_FIELDS}
           setUsername={setUsername}
           setUserRegion={setUserRegion}
           setAccountTargetTable={setAccountTargetTable}
@@ -2348,6 +2378,7 @@ function App() {
           accountInfoCostPerRow={accountInfoCostPerRow}
           quotaRemaining={quotaInfo?.remaining}
           accountInfoSelectedFields={accountInfoSelectedFields}
+          accountInfoRequiredFields={ACCOUNT_INFO_REQUIRED_FIELDS}
           handleAccountInfoFieldChange={handleAccountInfoFieldChange}
           handleAccountInfoFetch={handleAccountInfoFetch}
           handleAccountInfoStop={handleAccountInfoStop}
