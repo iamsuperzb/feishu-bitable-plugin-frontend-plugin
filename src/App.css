@@ -621,7 +621,7 @@ button:disabled {
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  padding: 6px 0;
+  padding: 10px 0;
   border-bottom: 1px solid #e8e8e8;
   /* 二级粘性定位 - 在主Header下方 */
   position: sticky;
@@ -632,10 +632,6 @@ button:disabled {
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   transition: box-shadow 0.2s ease, background-color 0.2s ease;
-}
-
-.section-header h2 {
-  margin: 0;
 }
 
 /* 暗色主题下的section-header背景 */
