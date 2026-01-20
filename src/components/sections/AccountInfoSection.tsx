@@ -90,7 +90,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
     <div className="section">
       <div className="section-header" onClick={onToggle}>
         <h2>
-          {tr('获取账号信息')}
+          {tr('账号资料批量补全')}
           {accountInfoLoading && <span className="running-indicator">{tr('获取中')}</span>}
         </h2>
         <span className={`collapse-icon ${open ? '' : 'collapsed'}`}>▼</span>

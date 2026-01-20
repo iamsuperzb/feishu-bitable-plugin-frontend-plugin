@@ -77,7 +77,7 @@ export default function AccountSection(props: AccountSectionProps) {
     <div className="section">
       <div className="section-header" onClick={onToggle}>
         <h2>
-          {tr('账号下视频采集')}
+          {tr('单账号作品表现')}
           {isCollecting && collectType === 2 && <span className="running-indicator">{tr('采集中')}</span>}
         </h2>
         <span className={`collapse-icon ${open ? '' : 'collapsed'}`}>▼</span>
