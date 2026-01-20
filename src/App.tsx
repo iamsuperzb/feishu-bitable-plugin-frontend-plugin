@@ -88,6 +88,37 @@ const buildCoverFileName = (prefix: string, awemeId?: string) => {
   return `${safePrefix}-${suffix}.jpg`
 }
 
+const buildVideoShareLink = ({
+  shareUrl,
+  shareInfoUrl,
+  awemeId,
+  authorId
+}: {
+  shareUrl?: string
+  shareInfoUrl?: string
+  awemeId?: string
+  authorId?: string
+}) => {
+  const normalizeLink = (url?: string) => {
+    if (!url) return ''
+    const trimmed = url.trim()
+    if (!trimmed) return ''
+    return trimmed.split('?')[0]
+  }
+
+  const rootLink = normalizeLink(shareUrl)
+  if (rootLink) return rootLink
+
+  const shareInfoLink = normalizeLink(shareInfoUrl)
+  if (shareInfoLink) return shareInfoLink
+
+  if (awemeId && authorId) {
+    return `https://www.tiktok.com/@${authorId}/video/${awemeId}`
+  }
+
+  return ''
+}
+
 interface SearchItemData {
   aweme_info?: {
     aweme_id?: string
@@ -939,37 +970,17 @@ function App() {
               const awemeInfo = item.aweme_info!
 
               // 获取视频链接：优先级 1) 根层级 share_url 2) share_info.share_url 3) aweme_id 构建
-              let videoUrl = '';
-
-              // 调试：打印原始数据
               console.log('[DEBUG 视频链接提取] aweme_id:', awemeInfo.aweme_id)
               console.log('[DEBUG 视频链接提取] 根层级 share_url:', awemeInfo.share_url)
               console.log('[DEBUG 视频链接提取] share_info.share_url:', awemeInfo.share_info?.share_url)
               console.log('[DEBUG 视频链接提取] author.unique_id:', awemeInfo.author?.unique_id)
 
-              // 方式1：根层级的 share_url（优先）
-              const rootShareUrl = awemeInfo.share_url || '';
-              if (rootShareUrl) {
-                videoUrl = rootShareUrl.split('?')[0];
-                console.log('[DEBUG 视频链接提取] 方式1成功，videoUrl:', videoUrl)
-              }
-
-              // 方式2：share_info.share_url（备用）
-              if (!videoUrl) {
-                const shareInfoUrl = awemeInfo.share_info?.share_url || '';
-                if (shareInfoUrl) {
-                  videoUrl = shareInfoUrl.split('?')[0];
-                  console.log('[DEBUG 视频链接提取] 方式2成功，videoUrl:', videoUrl)
-                }
-              }
-
-              // 方式3：用 aweme_id 构建完整链接（最后备用）
-              if (!videoUrl && awemeInfo.aweme_id && awemeInfo.author?.unique_id) {
-                const awemeId = awemeInfo.aweme_id;
-                const authorId = awemeInfo.author.unique_id;
-                videoUrl = `https://www.tiktok.com/@${authorId}/video/${awemeId}`;
-                console.log('[DEBUG 视频链接提取] 方式3成功，videoUrl:', videoUrl)
-              }
+              const videoUrl = buildVideoShareLink({
+                shareUrl: awemeInfo.share_url,
+                shareInfoUrl: awemeInfo.share_info?.share_url,
+                awemeId: awemeInfo.aweme_id,
+                authorId: awemeInfo.author?.unique_id
+              })
 
               console.log('[DEBUG 视频链接提取] 最终 videoUrl:', videoUrl)
 
@@ -1282,28 +1293,12 @@ function App() {
               if (!item || !item.author || accountShouldStopRef.current) continue;
 
               // 获取视频链接：优先级 1) 根层级 share_url 2) share_info.share_url 3) aweme_id 构建
-              let videoUrl = '';
-
-              // 方式1：根层级的 share_url（优先）
-              const rootShareUrl = item.share_url || '';
-              if (rootShareUrl) {
-                videoUrl = rootShareUrl.split('?')[0];
-              }
-
-              // 方式2：share_info.share_url（备用）
-              if (!videoUrl) {
-                const shareInfoUrl = item.share_info?.share_url || '';
-                if (shareInfoUrl) {
-                  videoUrl = shareInfoUrl.split('?')[0];
-                }
-              }
-
-              // 方式3：用 aweme_id 构建完整链接（最后备用）
-              if (!videoUrl && item.aweme_id && item.author?.unique_id) {
-                const awemeId = item.aweme_id;
-                const authorId = item.author.unique_id;
-                videoUrl = `https://www.tiktok.com/@${authorId}/video/${awemeId}`;
-              }
+              const videoUrl = buildVideoShareLink({
+                shareUrl: item.share_url,
+                shareInfoUrl: item.share_info?.share_url,
+                awemeId: item.aweme_id,
+                authorId: item.author?.unique_id
+              })
 
               // 使用带货检测函数分析视频数据
               const commerce = commerceFromAweme(item as unknown as Record<string, unknown>)
