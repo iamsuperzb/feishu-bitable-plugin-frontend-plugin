@@ -781,12 +781,6 @@ function App() {
     }
     setIsStopping(true);
     setMessage(tr('正在停止关键词采集...'));
-
-    setTimeout(() => {
-      setIsStopping(false);
-      setIsCollecting(false);
-      setMessage(tr('关键词采集已停止'));
-    }, 500);
   };
 
   const stopAccountCollection = () => {
@@ -796,12 +790,6 @@ function App() {
     }
     setIsStopping(true);
     setMessage(tr('正在停止账户采集...'));
-
-    setTimeout(() => {
-      setIsStopping(false);
-      setIsCollecting(false);
-      setMessage(tr('账户采集已停止'));
-    }, 500);
   };
 
   const stopAudioExtraction = () => {
