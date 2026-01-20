@@ -2110,9 +2110,16 @@ function App() {
   useEffect(() => {
     if (!fields.length) return
 
-    if (audioMode === 'column' && !audioVideoUrlField) {
+    if (audioMode === 'column') {
       const urlField = fields.find(meta => meta.name === '视频链接' && meta.type === FieldType.Url)
-      if (urlField) setAudioVideoUrlField(urlField.id)
+      const videoFieldValid = audioVideoUrlField && fields.some(meta => meta.id === audioVideoUrlField)
+      if (!videoFieldValid) {
+        if (urlField) {
+          setAudioVideoUrlField(urlField.id)
+        } else if (audioVideoUrlField) {
+          setAudioVideoUrlField('')
+        }
+      }
     }
 
     // 写入列仅在列模式且写入当前表格时需要
