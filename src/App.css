@@ -161,13 +161,13 @@ h3 {
 }
 
 .form-item label {
-  font-size: 13px;
-  color: #666;
-  font-weight: 500;
+  font-size: 14px;
+  color: #1f2329;
+  font-weight: 600;
 }
 
 .app.dark .form-item label {
-  color: #999;
+  color: #f1f1f1;
 }
 
 input, select {
