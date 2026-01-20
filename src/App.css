@@ -160,7 +160,7 @@ h3 {
   max-width: 100%;
 }
 
-.form-item label {
+.form-item > label:not(.checkbox-label) {
   font-size: 14px;
   color: #1f2329;
   font-weight: 600;
@@ -173,7 +173,7 @@ h3 {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-.app.dark .form-item label {
+.app.dark .form-item > label:not(.checkbox-label) {
   color: #f1f1f1;
   background: #2c2c2c;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
