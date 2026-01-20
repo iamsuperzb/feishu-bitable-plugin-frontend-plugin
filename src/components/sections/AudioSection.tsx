@@ -164,14 +164,14 @@ export default function AudioSection(props: AudioSectionProps) {
 
           {audioMode === 'column' && audioTargetTable === 'current' && (
             <div className="form-item full-width">
-              <label>{tr('输出文案:')}</label>
+              <label>{tr('写入列:')}</label>
               <select
                 value={audioOutputField}
                 onChange={(e) => setAudioOutputField(e.target.value)}
                 disabled={audioLoading}
                 className="select-styled"
               >
-                <option value="">{tr('请选择输出文案列')}</option>
+                <option value="">{tr('请选择写入列')}</option>
                 {fields.map(field => (
                   <option key={field.id} value={field.id}>
                     {field.name}

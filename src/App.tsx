@@ -2116,7 +2116,7 @@ function App() {
       if (urlField) setAudioVideoUrlField(urlField.id)
     }
 
-    // 输出文案仅在列模式需要
+  // 写入列仅在列模式需要
     if (audioMode === 'column' && !audioOutputField) {
       const textField = fields.find(meta => meta.name === '转写文案' && meta.type === FieldType.Text)
       if (textField) setAudioOutputField(textField.id)
