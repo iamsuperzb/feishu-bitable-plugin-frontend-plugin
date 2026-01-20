@@ -1769,44 +1769,65 @@ function App() {
       }
     };
 
+    const getAudioEndpoints = () => {
+      const directBase = getApiBase();
+      const directUrl = directBase ? `${directBase}/api/extract-audio` : '';
+      const fallbackUrl = '/api/extract-audio';
+      if (!directUrl) return [fallbackUrl];
+      if (directUrl === fallbackUrl) return [directUrl];
+      return [directUrl, fallbackUrl];
+    };
+
     const fetchAudioTranscript = async (videoUrl: string): Promise<AudioTranscriptResult> => {
       const maxAttempts = 2;
       const baseDelayMs = 1200;
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        if (audioShouldStopRef.current || audioSignal.aborted) return { status: 'aborted' };
+      const endpoints = getAudioEndpoints();
+      for (const endpoint of endpoints) {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          if (audioShouldStopRef.current || audioSignal.aborted) return { status: 'aborted' };
 
-        const response = await fetchWithIdentity(`${getApiBase()}/api/extract-audio`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoUrl }),
-          signal: audioSignal
-        }, { timeout: TIMEOUT_CONFIG.AUDIO_EXTRACT });
-
-        if (await handle429Error(response)) {
-          return { status: 'quota' };
-        }
-
-        if (!response.ok) {
-          const { data, rawText } = await parseResponseError(response);
-          if (response.status === 503 && data?.code === 'TRANSCRIBE_BUSY' && attempt < maxAttempts) {
-            const retryAfter = parseInt(data?.retryAfter, 10);
-            const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
-              ? retryAfter * 1000
-              : baseDelayMs * attempt;
+          let response: Response;
+          try {
+            response = await fetchWithIdentity(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ videoUrl }),
+              signal: audioSignal
+            }, { timeout: TIMEOUT_CONFIG.AUDIO_EXTRACT });
+          } catch {
+            if (audioShouldStopRef.current || audioSignal.aborted) return { status: 'aborted' };
+            if (attempt >= maxAttempts) break;
+            const delayMs = baseDelayMs * attempt;
             await sleep(delayMs);
             continue;
           }
-          const errorMessage = data?.error || rawText || tr('转录失败');
-          return { status: 'error', error: errorMessage };
-        }
 
-        handleQuotaHeaders(response);
-        const payload = await response.json().catch(() => ({}));
-        return {
-          status: 'ok',
-          text: payload?.text ?? '',
-          empty: Boolean(payload?.empty)
-        };
+          if (await handle429Error(response)) {
+            return { status: 'quota' };
+          }
+
+          if (!response.ok) {
+            const { data, rawText } = await parseResponseError(response);
+            if (response.status === 503 && data?.code === 'TRANSCRIBE_BUSY' && attempt < maxAttempts) {
+              const retryAfter = parseInt(data?.retryAfter, 10);
+              const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
+                ? retryAfter * 1000
+                : baseDelayMs * attempt;
+              await sleep(delayMs);
+              continue;
+            }
+            const errorMessage = data?.error || rawText || tr('转录失败');
+            return { status: 'error', error: errorMessage };
+          }
+
+          handleQuotaHeaders(response);
+          const payload = await response.json().catch(() => ({}));
+          return {
+            status: 'ok',
+            text: payload?.text ?? '',
+            empty: Boolean(payload?.empty)
+          };
+        }
       }
       return { status: 'error', error: tr('转录失败') };
     };
