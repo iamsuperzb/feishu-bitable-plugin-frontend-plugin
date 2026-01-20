@@ -1487,24 +1487,28 @@ function App() {
         }
 
         // 检查记录是否有数据（用于判断是否跳过）- 仅当前表时有效，写入新表默认跳过检查
-        const hasExistingData = async (recordId: string): Promise<boolean> => {
+        const hasExistingData = async (record: { recordId: string; fields?: Record<string, IOpenCellValue> }): Promise<boolean> => {
           if (isNewTargetTable) return false
-          const fieldsToCheck = ['关注者数量', '点赞数量', '视频数量', 'TT账户URL']
-          for (const fieldName of fieldsToCheck) {
-            if (!accountInfoSelectedFields[fieldName]) continue
-            const fieldMeta = fieldMetaList.find(f => f.name === fieldName)
-            if (!fieldMeta) continue
-            const value = await targetTable.getCellValue(fieldMeta.id, recordId)
-            if (!isCellValueEmpty(value)) {
-              return true
+
+          if (record.fields) {
+            for (const [fieldId, value] of Object.entries(record.fields)) {
+              if (fieldId === accountInfoUsernameField) continue
+              if (!isCellValueEmpty(value as IOpenCellValue)) return true
             }
+            return false
+          }
+
+          for (const fieldMeta of fieldMetaList) {
+            if (fieldMeta.id === accountInfoUsernameField) continue
+            const value = await targetTable.getCellValue(fieldMeta.id, record.recordId)
+            if (!isCellValueEmpty(value)) return true
           }
           return false
         }
 
         // 模式1: 从表格列读取账号
 
-        const processRecord = async (record: { recordId: string }) => {
+        const processRecord = async (record: { recordId: string; fields?: Record<string, IOpenCellValue> }) => {
           if (accountInfoStopRef.current) return
 
           const cellValue = await activeTable.getCellValue(accountInfoUsernameField, record.recordId)
@@ -1520,7 +1524,7 @@ function App() {
 
           // 检查是否跳过已有数据的行
           if (!accountInfoOverwrite) {
-            const hasData = await hasExistingData(record.recordId)
+            const hasData = await hasExistingData(record)
             if (hasData) {
               skipped++
               return
