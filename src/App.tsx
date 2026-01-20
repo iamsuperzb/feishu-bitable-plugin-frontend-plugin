@@ -2243,6 +2243,10 @@ function App() {
                       <span className="quota-detail-value">{tr('quota.accountInfo.desc')}</span>
                     </div>
                     <div className="quota-detail-item">
+                      <span className="quota-detail-label">{tr('quota.audio.label')}</span>
+                      <span className="quota-detail-value">{tr('quota.audio.desc')}</span>
+                    </div>
+                    <div className="quota-detail-item">
                       <span className="quota-detail-label">{tr('quota.reset.label')}</span>
                       <span className="quota-detail-value">{tr('quota.reset.desc')}</span>
                     </div>

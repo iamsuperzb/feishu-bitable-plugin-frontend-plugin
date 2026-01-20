@@ -178,13 +178,16 @@ const resources: Resource = {
       'quota.account.desc': '≈2点，≤30行数据',
       'quota.accountInfo.label': '账号信息',
       'quota.accountInfo.desc': '2点/行数据',
+      'quota.audio.label': '音频提取',
+      'quota.audio.desc': '1点/视频',
       'quota.reset.label': '配额重置',
       'quota.reset.desc': '每日配额，UTC 00:00（北京时间08:00）重置',
       'quota.insufficient.page': '配额不足：至少需要约{{need}}个数据点/页，剩余{{remaining}}个',
       'quota.insufficient.row': '配额不足：需要约{{need}}个数据点，剩余{{remaining}}个',
       'quota.keyword.tip': '此功能消耗：约1个数据点/页，可采集≤15行数据（单次搜索最多返回15条视频）',
       'quota.account.tip': '此功能消耗：约2个数据点/页，可采集≤30行数据（需搜索用户+获取视频列表）',
-      'quota.accountInfo.tip': '此功能消耗：2个数据点/行账号数据（用户详情1+视频样本1），请合理使用配额'
+      'quota.accountInfo.tip': '此功能消耗：2个数据点/行账号数据（用户详情1+视频样本1），请合理使用配额',
+      'quota.audio.tip': '此功能消耗：每个视频 1 个数据点'
     }
   },
   en: {
@@ -363,13 +366,16 @@ const resources: Resource = {
       'quota.account.desc': '≈2 points, ≤30 rows',
       'quota.accountInfo.label': 'Account info',
       'quota.accountInfo.desc': '2 points / row',
+      'quota.audio.label': 'Audio extraction',
+      'quota.audio.desc': '1 point / video',
       'quota.reset.label': 'Quota reset',
       'quota.reset.desc': 'Daily quota resets at 00:00 UTC (08:00 Beijing)',
       'quota.insufficient.page': 'Quota insufficient: need at least {{need}} data points per page, remaining {{remaining}}',
       'quota.insufficient.row': 'Quota insufficient: need about {{need}} data points, remaining {{remaining}}',
       'quota.keyword.tip': 'Cost: about 1 data point per page, up to 15 rows per page (max 15 videos per search)',
       'quota.account.tip': 'Cost: about 2 data points per page, up to 30 rows per page (user search + video list)',
-      'quota.accountInfo.tip': 'Cost: 2 data points per account row (user details + video sample), please use quota wisely'
+      'quota.accountInfo.tip': 'Cost: 2 data points per account row (user details + video sample), please use quota wisely',
+      'quota.audio.tip': 'Cost: 1 data point per video'
     }
   },
   jp: {
@@ -544,13 +550,16 @@ const resources: Resource = {
       'quota.account.desc': '約2ポイント、最大30行',
       'quota.accountInfo.label': 'アカウント情報',
       'quota.accountInfo.desc': '1行あたり2ポイント',
+      'quota.audio.label': '音声抽出',
+      'quota.audio.desc': '1本あたり1ポイント',
       'quota.reset.label': 'リセット',
       'quota.reset.desc': '毎日の配額はUTC 00:00（北京08:00）でリセット',
       'quota.insufficient.page': '配額不足：少なくとも1ページあたり約{{need}}ポイント必要、残り{{remaining}}ポイント',
       'quota.insufficient.row': '配額不足：必要約{{need}}ポイント、残り{{remaining}}ポイント',
       'quota.keyword.tip': 'この機能の消費：1ページあたり約1ポイント、1ページ最大15行（1回の検索で最大15本）',
       'quota.account.tip': 'この機能の消費：1ページあたり約2ポイント、1ページ最大30行（ユーザー検索+動画一覧）',
-      'quota.accountInfo.tip': 'この機能の消費：アカウント行ごとに2ポイント（ユーザー詳細1+動画サンプル1）。配額にご注意ください'
+      'quota.accountInfo.tip': 'この機能の消費：アカウント行ごとに2ポイント（ユーザー詳細1+動画サンプル1）。配額にご注意ください',
+      'quota.audio.tip': 'この機能の消費：動画1本あたり1ポイント'
     }
   }
 };

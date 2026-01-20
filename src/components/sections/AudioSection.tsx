@@ -214,6 +214,21 @@ export default function AudioSection(props: AudioSectionProps) {
             </button>
           )}
         </div>
+
+        <div
+          style={{
+            marginTop: '12px',
+            padding: '8px 12px',
+            background: '#f0f5ff',
+            border: '1px solid #adc6ff',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: '#1890ff',
+            lineHeight: '1.5'
+          }}
+        >
+          ℹ️ {tr('quota.audio.tip')}
+        </div>
       </div>
     </div>
   )
