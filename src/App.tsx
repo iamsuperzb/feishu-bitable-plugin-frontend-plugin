@@ -2108,16 +2108,15 @@ function App() {
 
   // 自动匹配当前表中的视频链接/转写文案字段，减少手动选择
   useEffect(() => {
-    if (audioTargetTable !== 'current') return
     if (!fields.length) return
 
-    if (!audioVideoUrlField) {
+    if (audioMode === 'column' && !audioVideoUrlField) {
       const urlField = fields.find(meta => meta.name === '视频链接' && meta.type === FieldType.Url)
       if (urlField) setAudioVideoUrlField(urlField.id)
     }
 
-  // 写入列仅在列模式需要
-    if (audioMode === 'column' && !audioOutputField) {
+    // 写入列仅在列模式且写入当前表格时需要
+    if (audioMode === 'column' && audioTargetTable === 'current' && !audioOutputField) {
       const textField = fields.find(meta => meta.name === '转写文案' && meta.type === FieldType.Text)
       if (textField) setAudioOutputField(textField.id)
     }
