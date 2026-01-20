@@ -167,16 +167,18 @@ h3 {
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
-  padding: 4px 8px;
+  padding: 4px 10px 4px 8px;
   border-radius: 6px;
-  background: #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  background: #f6f7f9;
+  border: 1px solid #e5e7eb;
+  border-left: 3px solid #1677ff;
 }
 
 .app.dark .form-item > label:not(.checkbox-label) {
   color: #f1f1f1;
-  background: #2c2c2c;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  background: #2b2f36;
+  border: 1px solid #3a3f47;
+  border-left: 3px solid #4c9aff;
 }
 
 input, select {
