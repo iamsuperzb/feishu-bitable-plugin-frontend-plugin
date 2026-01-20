@@ -986,7 +986,7 @@ function App() {
         // 检查是否需要停止
         if (keywordShouldStopRef.current) break;
 
-        const params: Record<string, string> = {
+        const params = {
           keyword: query,
           count: '15',
           offset,
@@ -1289,7 +1289,7 @@ function App() {
         // 检查是否需要停止
         if (accountShouldStopRef.current) break;
 
-        const params: Record<string, string> = {
+        const params = {
           username: resolvedUsername,
           count: '30',
           offset,
