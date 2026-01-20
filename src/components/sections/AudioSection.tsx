@@ -59,7 +59,7 @@ export default function AudioSection(props: AudioSectionProps) {
       </div>
 
       <div className={`section-content ${open ? 'open' : 'collapsed'}`}>
-        <div className="search-form">
+        <div className="search-form audio-search-form">
           <div className="form-item">
             <label>{tr('数据来源:')}</label>
             <div className="radio-group">
