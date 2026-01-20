@@ -1,10 +1,10 @@
 /**
- * 粘性 Header 管理 Hook
+ * 顶部固定区域管理 Hook
  *
- * 管理主 Header 的粘性滚动效果
+ * 管理顶部固定区域的滚动状态
  * 职责：
- * - 监听主 Header 尺寸变化
- * - 判断 Header 是否已吸顶
+ * - 监听固定区域尺寸变化
+ * - 判断固定区域是否已吸顶
  *
  * @remarks
  * 仅控制吸顶状态，不做缩放处理
@@ -13,7 +13,7 @@
 import { useState, useRef, useEffect } from 'react'
 
 /**
- * 粘性 Header 管理 Hook
+ * 顶部固定区域管理 Hook
  *
  * @returns Header 引用、状态和样式参数
  *
@@ -29,7 +29,7 @@ import { useState, useRef, useEffect } from 'react'
  * return (
  *   <div ref={appRef}>
  *     <div ref={mainHeaderRef}>
- *       主 Header
+ *       顶部固定区域
  *     </div>
  *     <div style={{ top: `${mainHeaderHeight}px` }}>
  *       二级 Header（粘性）

@@ -372,8 +372,13 @@ function App() {
     setLoading
   })
 
-  // 粘性 Header 管理
-  const { appRef, mainHeaderRef, mainHeaderHeight, headerPinned } = useStickyHeader()
+  // 顶部固定区域管理
+  const {
+    appRef,
+    mainHeaderRef: quotaStickyRef,
+    mainHeaderHeight: quotaStickyHeight,
+    headerPinned: quotaStickyPinned
+  } = useStickyHeader()
 
   // 关键词采集字段选择
   const [keywordSelectedFields, setKeywordSelectedFields] = useState<{[key: string]: boolean}>({
@@ -2244,86 +2249,84 @@ function App() {
         className={`app ${theme.toLowerCase()}`}
         style={{
           // 通过CSS变量驱动子元素的sticky定位
-          '--main-header-height': `${mainHeaderHeight}px`,
-          // 二级header的top = 主header的实际高度
-          '--section-sticky-top': `${mainHeaderHeight + 6}px`
+          // 二级header的top = 顶部固定区域的实际高度
+          '--section-sticky-top': `${quotaStickyHeight + 6}px`
         } as CSSProperties}
       >
-        {/* ==================== 粘性主Header ====================  */}
-        <div
-          ref={mainHeaderRef}
-          className={`main-header ${headerPinned ? 'pinned' : ''}`}
-        >
+        {/* ==================== 主标题（随内容滚动） ====================  */}
+        <div className="main-header">
           <div className="main-header-inner">
             <h1 className="app-title">{t('title')}</h1>
-
-            {/* 配额信息显示 - Phase 3 紧凑设计 */}
-            
-            {/* 配额信息显示 - Phase 3 紧凑设计 */}
-            {quotaInfo && quotaInfo.status === 'available' && quotaInfo.remaining !== null && quotaInfo.quota !== null ? (
-              <>
-                <div className="quota-card">
-                  <div className="quota-card-header">
-                    <div className="quota-card-title">📊 {tr('quota.title')}</div>
-
-                    <div className="quota-progress-bar">
-                      <div
-                        className={`quota-progress-fill ${
-                          quotaInfo.remaining <= 5 ? 'danger' :
-                          quotaInfo.remaining <= 10 ? 'warning' : ''
-                        }`}
-                        style={{
-                          width: `${((quotaInfo.quota - quotaInfo.remaining) / quotaInfo.quota) * 100}%`
-                        }}
-                      />
-                    </div>
-
-                    <div
-                      className={`quota-remaining ${
-                        quotaInfo.remaining <= 5 ? 'danger' :
-                        quotaInfo.remaining <= 10 ? 'warning' : ''
-                      }`}
-                    >
-                      {quotaInfo.remaining}/{quotaInfo.quota}
-                    </div>
-
-                    <button
-                      className={`quota-toggle-btn ${quotaDetailsOpen ? 'open' : ''}`}
-                      onClick={() => setQuotaDetailsOpen(!quotaDetailsOpen)}
-                      aria-label={quotaDetailsOpen ? tr('quota.collapse') : tr('quota.expand')}
-                    >
-                      ▼
-                    </button>
-                  </div>
-
-                  <div className={`quota-card-details ${quotaDetailsOpen ? 'open' : ''}`}>
-                    <div className="quota-detail-item">
-                      <span className="quota-detail-label">{tr('quota.keyword.label')}</span>
-                      <span className="quota-detail-value">{tr('quota.keyword.desc')}</span>
-                    </div>
-                    <div className="quota-detail-item">
-                      <span className="quota-detail-label">{tr('quota.account.label')}</span>
-                      <span className="quota-detail-value">{tr('quota.account.desc')}</span>
-                    </div>
-                    <div className="quota-detail-item">
-                      <span className="quota-detail-label">{tr('quota.accountInfo.label')}</span>
-                      <span className="quota-detail-value">{tr('quota.accountInfo.desc')}</span>
-                    </div>
-                    <div className="quota-detail-item">
-                      <span className="quota-detail-label">{tr('quota.audio.label')}</span>
-                      <span className="quota-detail-value">{tr('quota.audio.desc')}</span>
-                    </div>
-                    <div className="quota-detail-item">
-                      <span className="quota-detail-label">{tr('quota.reset.label')}</span>
-                      <span className="quota-detail-value">{tr('quota.reset.desc')}</span>
-                    </div>
-                  </div>
-                </div>
-
-              </>
-            ) : null}
           </div>
         </div>
+
+        {/* ==================== 数据点（置顶固定） ====================  */}
+        {quotaInfo && quotaInfo.status === 'available' && quotaInfo.remaining !== null && quotaInfo.quota !== null ? (
+          <div
+            ref={quotaStickyRef}
+            className={`quota-sticky ${quotaStickyPinned ? 'pinned' : ''}`}
+          >
+            <div className="quota-card">
+              <div className="quota-card-header">
+                <div className="quota-card-title">📊 {tr('quota.title')}</div>
+
+                <div className="quota-progress-bar">
+                  <div
+                    className={`quota-progress-fill ${
+                      quotaInfo.remaining <= 5 ? 'danger' :
+                      quotaInfo.remaining <= 10 ? 'warning' : ''
+                    }`}
+                    style={{
+                      width: `${((quotaInfo.quota - quotaInfo.remaining) / quotaInfo.quota) * 100}%`
+                    }}
+                  />
+                </div>
+
+                <div
+                  className={`quota-remaining ${
+                    quotaInfo.remaining <= 5 ? 'danger' :
+                    quotaInfo.remaining <= 10 ? 'warning' : ''
+                  }`}
+                >
+                  {quotaInfo.remaining}/{quotaInfo.quota}
+                </div>
+
+                <button
+                  className={`quota-toggle-btn ${quotaDetailsOpen ? 'open' : ''}`}
+                  onClick={() => setQuotaDetailsOpen(!quotaDetailsOpen)}
+                  aria-label={quotaDetailsOpen ? tr('quota.collapse') : tr('quota.expand')}
+                >
+                  ▼
+                </button>
+              </div>
+
+              <div className={`quota-card-details ${quotaDetailsOpen ? 'open' : ''}`}>
+                <div className="quota-detail-item">
+                  <span className="quota-detail-label">{tr('quota.keyword.label')}</span>
+                  <span className="quota-detail-value">{tr('quota.keyword.desc')}</span>
+                </div>
+                <div className="quota-detail-item">
+                  <span className="quota-detail-label">{tr('quota.account.label')}</span>
+                  <span className="quota-detail-value">{tr('quota.account.desc')}</span>
+                </div>
+                <div className="quota-detail-item">
+                  <span className="quota-detail-label">{tr('quota.accountInfo.label')}</span>
+                  <span className="quota-detail-value">{tr('quota.accountInfo.desc')}</span>
+                </div>
+                <div className="quota-detail-item">
+                  <span className="quota-detail-label">{tr('quota.audio.label')}</span>
+                  <span className="quota-detail-value">{tr('quota.audio.desc')}</span>
+                </div>
+                <div className="quota-detail-item">
+                  <span className="quota-detail-label">{tr('quota.reset.label')}</span>
+                  <span className="quota-detail-value">{tr('quota.reset.desc')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div ref={quotaStickyRef} className="quota-sticky" />
+        )}
 
 
         {/* ==================== 功能板块（带二级粘性Header）====================  */}
