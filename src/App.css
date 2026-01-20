@@ -795,17 +795,19 @@ button:disabled {
   padding: 10px 12px;
   width: 100%;
   box-sizing: border-box;
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: rgba(255, 255, 255, 0.8);
   border: 1px solid #e8e8e8;
   border-radius: 6px;
   font-size: 13px;
   line-height: 1.4;
   order: 1;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   transition: all 0.2s ease;
 }
 
 .quota-card:hover {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: rgba(255, 255, 255, 0.85);
   border-color: #d0d0d0;
 }
 
@@ -949,12 +951,12 @@ button:disabled {
 
 /* 深色主题适配 */
 .app.dark .quota-card {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(31, 35, 41, 0.75);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
 .app.dark .quota-card:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(31, 35, 41, 0.82);
   border-color: rgba(255, 255, 255, 0.15);
 }
 
