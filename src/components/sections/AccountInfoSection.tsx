@@ -98,7 +98,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
 
       <div className={`section-content ${open ? 'open' : 'collapsed'}`}>
         <div className="search-form account-info-search-form">
-          <div className="form-item">
+          <div className="form-item full-width">
             <label>{tr('数据来源:')}</label>
             <div className="radio-group">
               <label className="radio-label">
@@ -128,7 +128,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
 
           {accountInfoMode === 'column' ? (
             <>
-              <div className="form-item">
+              <div className="form-item full-width">
                 <label>{tr('账号列:')}</label>
                 <select
                   value={accountInfoUsernameField}
@@ -157,7 +157,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                 <span className="field-tip">{tr('不勾选则跳过已有数据的行')}</span>
               </div>
 
-              <div className="form-item">
+              <div className="form-item full-width">
                 <label>{tr('写入目标:')}</label>
                 <div className="radio-group">
                   <label className="radio-label">
