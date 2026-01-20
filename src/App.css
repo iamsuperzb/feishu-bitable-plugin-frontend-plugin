@@ -143,6 +143,10 @@ h3 {
   align-items: flex-start;
 }
 
+.search-form.account-info-search-form {
+  align-items: flex-start;
+}
+
 .form-item {
   display: flex;
   flex-direction: column;
