@@ -1769,38 +1769,6 @@ function App() {
     setMessage(tr('正在停止...'))
   }
 
-  // 从单元格中提取 URL
-  const extractUrlFromCell = (cellValue: IOpenCellValue): string => {
-    if (!cellValue) return '';
-
-    // 如果是字符串，直接返回
-    if (typeof cellValue === 'string') return cellValue;
-
-    // 如果是数组，尝试获取第一个元素
-    if (Array.isArray(cellValue) && cellValue.length > 0) {
-      const firstItem = cellValue[0];
-      if (typeof firstItem === 'object' && firstItem !== null) {
-        if ('link' in firstItem) return firstItem.link as string;
-        if ('text' in firstItem) return firstItem.text as string;
-      }
-      return String(firstItem);
-    }
-
-    // 如果是对象
-    if (typeof cellValue === 'object') {
-      const obj = cellValue as { type?: string; link?: string; text?: string };
-      // URL 类型字段
-      if (obj.type === 'url' && obj.link) return obj.link;
-      // 文本类型字段
-      if ((obj.type === 'text' || !obj.type) && obj.text) return obj.text;
-      // 其他情况，尝试获取 link 或 text
-      if (obj.link) return obj.link;
-      if (obj.text) return obj.text;
-    }
-
-    return '';
-  };
-
   // 提取视频音频
   const handleAudioExtract = async () => {
     if (quotaUnavailable) {
@@ -1979,7 +1947,7 @@ function App() {
           if (audioShouldStopRef.current) return;
 
           const cellValue = await activeTable.getCellValue(audioVideoUrlField, record.recordId);
-          const videoUrl = extractUrlFromCell(cellValue);
+          const videoUrl = extractTextFromCell(cellValue);
           if (!videoUrl) return;
 
           if (targetTableMode === 'current') {
