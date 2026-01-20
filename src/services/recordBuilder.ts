@@ -260,7 +260,7 @@ export const ACCOUNT_VIDEO_MAPPINGS: FieldMapping<AccountVideoItem>[] = [
  */
 export const ACCOUNT_INFO_MAPPINGS: FieldMapping<AccountInfoItem>[] = [
   { name: 'TT账户名称', getValue: info => info.accountName || info.username },
-  { name: 'TT账户URL', getValue: info => normalizeAccountKey(info.accountUrl || info.accountName || info.username || '') },
+  { name: 'TT账户URL', getValue: info => normalizeAccountKey(info.accountUrl || info.username || info.accountName || '') },
   { name: 'Instagram URL', getValue: info => info.instagramUrl || '' },
   { name: 'YouTube URL', getValue: info => info.youtubeUrl || '' },
   { name: '关注者数量', getValue: info => info.followers ?? 0 },
@@ -418,7 +418,7 @@ export const buildAccountInfoRecord = async (
   writers: Record<string, FieldWriter>
 ): Promise<Record<string, IOpenCellValue> | null> => {
   // 验证账号 URL
-  const accountKey = normalizeAccountKey(info.accountUrl || info.accountName || info.username || '')
+  const accountKey = normalizeAccountKey(info.accountUrl || info.username || info.accountName || '')
   if (!accountKey) {
     console.warn('[buildAccountInfoRecord] 账号 URL 为空，跳过该记录')
     return null
