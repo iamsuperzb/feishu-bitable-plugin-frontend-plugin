@@ -1779,7 +1779,7 @@ function App() {
       const fallbackUrl = '/api/extract-audio';
       if (!directUrl) return [fallbackUrl];
       if (directUrl === fallbackUrl) return [directUrl];
-      return [directUrl, fallbackUrl];
+      return [fallbackUrl, directUrl];
     };
 
     const fetchAudioTranscript = async (videoUrl: string): Promise<AudioTranscriptResult> => {

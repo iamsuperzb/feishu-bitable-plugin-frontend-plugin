@@ -29,7 +29,7 @@ export const getApiBase = (): string => {
 export const TIMEOUT_CONFIG = {
   QUOTA: parseInt(import.meta.env.VITE_TIMEOUT_QUOTA || '5000'),
   SEARCH: parseInt(import.meta.env.VITE_TIMEOUT_SEARCH || '20000'),
-  AUDIO_EXTRACT: parseInt(import.meta.env.VITE_TIMEOUT_AUDIO || '90000')
+  AUDIO_EXTRACT: parseInt(import.meta.env.VITE_TIMEOUT_AUDIO || '180000')
 } as const
 
 /**
