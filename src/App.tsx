@@ -1779,9 +1779,12 @@ function App() {
         }
       }
 
-      // 目标表字段
-      const audioFieldMeta = await ensureFields(targetTable, AUDIO_FIELD_CONFIGS, { '视频链接': true, '转写文案': true });
-      const audioWriters = await buildFieldWriters(targetTable, AUDIO_FIELD_CONFIGS, audioFieldMeta, { '视频链接': true, '转写文案': true });
+      // 目标表字段（仅在需要写入新行时创建/确保）
+      const audioSelectedMap = (audioTargetTable === 'new' || audioMode === 'batch')
+        ? { '视频链接': true, '转写文案': true }
+        : { '视频链接': false, '转写文案': false }
+      const audioFieldMeta = await ensureFields(targetTable, AUDIO_FIELD_CONFIGS, audioSelectedMap);
+      const audioWriters = await buildFieldWriters(targetTable, AUDIO_FIELD_CONFIGS, audioFieldMeta, audioSelectedMap);
 
       // 列模式：遍历当前表记录
       if (audioMode === 'column') {
