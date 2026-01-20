@@ -1736,6 +1736,11 @@ function App() {
       }
     }
 
+    const targetTableMode = audioMode === 'batch' ? 'new' : audioTargetTable
+    if (audioMode === 'batch' && audioTargetTable !== 'new') {
+      setAudioTargetTable('new')
+    }
+
     setAudioLoading(true);
     audioShouldStopRef.current = false;
     audioAbortControllerRef.current = new AbortController();
@@ -1750,7 +1755,7 @@ function App() {
       // 目标表
       let targetTable = activeTable;
       let targetTableName = '';
-      if (audioTargetTable === 'new') {
+      if (targetTableMode === 'new') {
         let nextTableName = audioNewTableName;
         if (audioTableNameAuto) {
           nextTableName = getDefaultAudioTableName();
@@ -1771,7 +1776,7 @@ function App() {
         }
       }
 
-      if (audioMode === 'column' && audioTargetTable === 'current') {
+      if (audioMode === 'column' && targetTableMode === 'current') {
         const outputMeta = await activeTable.getFieldMetaById(audioOutputField)
         if (outputMeta.type !== FieldType.Text) {
           setMessage(tr('输出字段类型不支持，请选择文本字段'))
@@ -1780,7 +1785,7 @@ function App() {
       }
 
       // 目标表字段（仅在需要写入新行时创建/确保）
-      const audioSelectedMap = (audioTargetTable === 'new' || audioMode === 'batch')
+      const audioSelectedMap = (targetTableMode === 'new' || audioMode === 'batch')
         ? { '视频链接': true, '转写文案': true }
         : { '视频链接': false, '转写文案': false }
       const audioFieldMeta = await ensureFields(targetTable, AUDIO_FIELD_CONFIGS, audioSelectedMap);
@@ -1802,7 +1807,7 @@ function App() {
           const videoUrl = extractUrlFromCell(cellValue);
           if (!videoUrl) return;
 
-          if (audioTargetTable === 'current') {
+          if (targetTableMode === 'current') {
             const outputValue = await activeTable.getCellValue(audioOutputField, record.recordId);
             if (!isCellValueEmpty(outputValue)) return;
             await activeTable.setCellValue(audioOutputField, record.recordId, tr('获取文案中..'));
@@ -1817,14 +1822,14 @@ function App() {
             }, { timeout: TIMEOUT_CONFIG.AUDIO_EXTRACT });
 
             if (await handle429Error(response)) {
-              if (audioTargetTable === 'current') {
+              if (targetTableMode === 'current') {
                 await activeTable.setCellValue(audioOutputField, record.recordId, '');
               }
               return;
             }
 
             if (audioShouldStopRef.current) {
-              if (audioTargetTable === 'current') {
+              if (targetTableMode === 'current') {
                 await activeTable.setCellValue(audioOutputField, record.recordId, '');
               }
               return;
@@ -1833,7 +1838,7 @@ function App() {
             if (!response.ok) {
               const errorText = await response.text();
               console.error('提取失败:', errorText);
-              if (audioTargetTable === 'current') {
+              if (targetTableMode === 'current') {
                 await activeTable.setCellValue(audioOutputField, record.recordId, '');
               }
               return;
@@ -1844,7 +1849,7 @@ function App() {
             const { text } = await response.json();
             const transcript = text || tr('转录失败');
 
-            if (audioTargetTable === 'current') {
+            if (targetTableMode === 'current') {
               const fieldMeta = await activeTable.getFieldMetaById(audioOutputField);
               if (fieldMeta.type === FieldType.Text) {
                 await activeTable.setCellValue(audioOutputField, record.recordId, transcript);
@@ -1886,7 +1891,7 @@ function App() {
                 console.error('处理单条记录失败:', error);
               }
               if (error.message === 'Load failed' || error.name === 'AbortError') {
-                if (audioTargetTable === 'current') {
+                if (targetTableMode === 'current') {
                   await activeTable.setCellValue(audioOutputField, record.recordId, '');
                 }
                 await sleep(5000);
@@ -1895,7 +1900,7 @@ function App() {
             } else {
               console.error('处理单条记录失败:', error);
             }
-            if (audioTargetTable === 'current') {
+            if (targetTableMode === 'current') {
               await activeTable.setCellValue(audioOutputField, record.recordId, '');
             }
           }
@@ -1916,7 +1921,7 @@ function App() {
         if (audioShouldStopRef.current) {
           setMessage(tr('用户停止了提取，已处理 {{count}} 条记录', { count: processedCount }));
         } else {
-          setMessage(tr(audioTargetTable === 'new'
+          setMessage(tr(targetTableMode === 'new'
             ? '处理完成，已写入新表 {{table}} 共 {{count}} 条记录'
             : '处理完成，共处理 {{count}} 条记录', { table: targetTableName || '', count: processedCount }));
         }
@@ -1952,7 +1957,7 @@ function App() {
         }
 
         // 先写入空文案占位，避免转写失败导致整批失败
-        const emptyIds: string[] = audioTargetTable === 'new' ? [] : await getEmptyRecords(targetTable, audioShouldStopRef, { maxScan: 500 });
+        const emptyIds: string[] = [];
         const addResult = await addRecordsInBatches(targetTable, recordsToInsert, { emptyRecordIds: emptyIds, stopRef: audioShouldStopRef });
         const insertedRecordIds = addResult.recordIds;
 
@@ -2021,6 +2026,13 @@ function App() {
   const keywordQuotaInsufficient = quotaAvailable && (quotaInfo?.remaining ?? 0) < keywordEstimatedCost
   const accountQuotaInsufficient = quotaAvailable && (quotaInfo?.remaining ?? 0) < accountEstimatedCost
   const accountInfoQuotaInsufficient = quotaAvailable && (quotaInfo?.remaining ?? 0) < accountInfoEstimatedCost && accountInfoEstimatedCost > 0
+
+  // 批量输入仅支持新建表格
+  useEffect(() => {
+    if (audioMode !== 'batch') return
+    if (audioTargetTable === 'new') return
+    setAudioTargetTable('new')
+  }, [audioMode, audioTargetTable])
 
   // 自动匹配当前表中的视频链接/转写文案字段，减少手动选择
   useEffect(() => {

@@ -142,7 +142,7 @@ export default function AudioSection(props: AudioSectionProps) {
                 <label>{tr('输出文案:')}</label>
                 <input
                   type="text"
-                  value={audioTargetTable === 'new' ? tr('将自动写入新表') : tr('写入当前表格')}
+                  value={audioMode === 'batch' || audioTargetTable === 'new' ? tr('将自动写入新表') : tr('写入当前表格')}
                   disabled
                 />
               </>
@@ -151,30 +151,45 @@ export default function AudioSection(props: AudioSectionProps) {
 
           <div className="form-item">
             <label>{tr('写入目标:')}</label>
-            <div className="radio-group">
-              <label className="radio-label">
-                <input
-                  type="radio"
-                  name="audioTargetTable"
-                  value="new"
-                  checked={audioTargetTable === 'new'}
-                  onChange={() => setAudioTargetTable('new')}
-                  disabled={audioLoading}
-                />
-                {tr('新建表格')}
-              </label>
-              <label className="radio-label">
-                <input
-                  type="radio"
-                  name="audioTargetTable"
-                  value="current"
-                  checked={audioTargetTable === 'current'}
-                  onChange={() => setAudioTargetTable('current')}
-                  disabled={audioLoading}
-                />
-                {tr('写入当前表格')}
-              </label>
-            </div>
+            {audioMode === 'batch' ? (
+              <div className="radio-group">
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="audioTargetTable"
+                    value="new"
+                    checked
+                    disabled
+                  />
+                  {tr('新建表格')}
+                </label>
+              </div>
+            ) : (
+              <div className="radio-group">
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="audioTargetTable"
+                    value="new"
+                    checked={audioTargetTable === 'new'}
+                    onChange={() => setAudioTargetTable('new')}
+                    disabled={audioLoading}
+                  />
+                  {tr('新建表格')}
+                </label>
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="audioTargetTable"
+                    value="current"
+                    checked={audioTargetTable === 'current'}
+                    onChange={() => setAudioTargetTable('current')}
+                    disabled={audioLoading}
+                  />
+                  {tr('写入当前表格')}
+                </label>
+              </div>
+            )}
           </div>
 
           {audioTargetTable === 'new' && (
