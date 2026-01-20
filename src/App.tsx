@@ -2322,7 +2322,10 @@ function App() {
             ref={quotaStickyRef}
             className={`quota-sticky ${quotaStickyPinned ? 'pinned' : ''}`}
           >
-            <div className="quota-card">
+            <div
+              className="quota-card"
+              onClick={() => setQuotaDetailsOpen(prev => !prev)}
+            >
               <div className="quota-card-header">
                 <div className="quota-card-title">📊 {tr('quota.title')}</div>
 
@@ -2349,7 +2352,10 @@ function App() {
 
                 <button
                   className={`quota-toggle-btn ${quotaDetailsOpen ? 'open' : ''}`}
-                  onClick={() => setQuotaDetailsOpen(!quotaDetailsOpen)}
+                  onClick={event => {
+                    event.stopPropagation()
+                    setQuotaDetailsOpen(prev => !prev)
+                  }}
                   aria-label={quotaDetailsOpen ? tr('quota.collapse') : tr('quota.expand')}
                 >
                   ▼
