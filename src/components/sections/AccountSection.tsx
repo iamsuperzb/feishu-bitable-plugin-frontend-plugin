@@ -85,7 +85,7 @@ export default function AccountSection(props: AccountSectionProps) {
 
       <div className={`section-content ${open ? 'open' : 'collapsed'}`}>
         <div className="search-form">
-          <div className="form-item">
+          <div className="form-item full-width">
             <label>{tr('账号名称:')}</label>
             <input
               type="text"
@@ -95,7 +95,7 @@ export default function AccountSection(props: AccountSectionProps) {
               disabled={isCollecting}
             />
           </div>
-          <div className="form-item">
+          <div className="form-item full-width">
             <label>{tr('国家地区 (必选):')}</label>
             <select
               value={userRegion}
@@ -124,7 +124,7 @@ export default function AccountSection(props: AccountSectionProps) {
             </select>
           </div>
 
-          <div className="form-item">
+          <div className="form-item full-width">
             <label>{tr('写入目标:')}</label>
             <div className="radio-group">
               <label className="radio-label">
@@ -153,7 +153,7 @@ export default function AccountSection(props: AccountSectionProps) {
           </div>
 
           {accountTargetTable === 'new' && (
-            <div className="form-item">
+            <div className="form-item full-width">
               <label>{tr('新表格名称')}</label>
               <input
                 type="text"

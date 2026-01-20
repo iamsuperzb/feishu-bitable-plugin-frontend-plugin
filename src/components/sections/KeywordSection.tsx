@@ -88,7 +88,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
 
       <div className={`section-content ${open ? 'open' : 'collapsed'}`}>
         <div className="search-form">
-          <div className="form-item">
+          <div className="form-item full-width">
             <label>{tr('关键词:')}</label>
             <input
               type="text"
@@ -98,7 +98,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
               disabled={isCollecting}
             />
           </div>
-          <div className="form-item">
+          <div className="form-item full-width">
             <label>{tr('发布时间:')}</label>
             <select
               value={vtime}
@@ -113,7 +113,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
               <option value="180d">{tr('最近180天')}</option>
             </select>
           </div>
-          <div className="form-item">
+          <div className="form-item full-width">
             <label>{tr('国家地区 (必选):')}</label>
             <select
               value={region}
@@ -142,7 +142,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
             </select>
           </div>
 
-          <div className="form-item">
+          <div className="form-item full-width">
             <label>{tr('写入目标:')}</label>
             <div className="radio-group">
               <label className="radio-label">
@@ -171,7 +171,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
           </div>
 
           {keywordTargetTable === 'new' && (
-            <div className="form-item">
+            <div className="form-item full-width">
               <label>{tr('新表格名称')}</label>
               <input
                 type="text"
