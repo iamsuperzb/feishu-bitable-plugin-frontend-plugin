@@ -97,7 +97,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
       </div>
 
       <div className={`section-content ${open ? 'open' : 'collapsed'}`}>
-        <div className={`search-form${accountInfoMode === 'batch' ? ' account-info-search-form' : ''}`}>
+        <div className="search-form account-info-search-form">
           <div className="form-item">
             <label>{tr('数据来源:')}</label>
             <div className="radio-group">
