@@ -162,35 +162,24 @@ export default function AudioSection(props: AudioSectionProps) {
             )}
           </div>
 
-          <div className="form-item full-width">
-            {audioMode === 'column' && audioTargetTable === 'current' ? (
-              <>
-                <label>{tr('输出文案:')}</label>
-                <select
-                  value={audioOutputField}
-                  onChange={(e) => setAudioOutputField(e.target.value)}
-                  disabled={audioLoading}
-                  className="select-styled"
-                >
-                  <option value="">{tr('请选择输出文案列')}</option>
-                  {fields.map(field => (
-                    <option key={field.id} value={field.id}>
-                      {field.name}
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : (
-              <>
-                <label>{tr('输出文案:')}</label>
-                <input
-                  type="text"
-                  value={audioMode === 'batch' || audioTargetTable === 'new' ? tr('将自动写入新表') : tr('写入当前表格')}
-                  disabled
-                />
-              </>
-            )}
-          </div>
+          {audioMode === 'column' && audioTargetTable === 'current' && (
+            <div className="form-item full-width">
+              <label>{tr('输出文案:')}</label>
+              <select
+                value={audioOutputField}
+                onChange={(e) => setAudioOutputField(e.target.value)}
+                disabled={audioLoading}
+                className="select-styled"
+              >
+                <option value="">{tr('请选择输出文案列')}</option>
+                {fields.map(field => (
+                  <option key={field.id} value={field.id}>
+                    {field.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {audioTargetTable === 'new' && (
             <div className="form-item full-width">
