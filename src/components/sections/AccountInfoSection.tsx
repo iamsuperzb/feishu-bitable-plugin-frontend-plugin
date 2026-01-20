@@ -144,19 +144,6 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                   ))}
                 </select>
               </div>
-              <div className="form-item checkbox-item">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={accountInfoOverwrite}
-                    onChange={(e) => setAccountInfoOverwrite(e.target.checked)}
-                    disabled={accountInfoLoading}
-                  />
-                  {tr('覆盖已有数据')}
-                </label>
-                <span className="field-tip">{tr('不勾选则跳过已有数据的行')}</span>
-              </div>
-
               <div className="form-item full-width">
                 <label>{tr('写入目标:')}</label>
                 <div className="radio-group">
@@ -183,6 +170,19 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                     {tr('写入当前表格')}
                   </label>
                 </div>
+              </div>
+
+              <div className="form-item checkbox-item full-width">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={accountInfoOverwrite}
+                    onChange={(e) => setAccountInfoOverwrite(e.target.checked)}
+                    disabled={accountInfoLoading}
+                  />
+                  {tr('覆盖已有数据')}
+                </label>
+                <span className="field-tip">{tr('不勾选则跳过已有数据的行')}</span>
               </div>
 
               {accountInfoColumnTargetTable === 'new' && (
