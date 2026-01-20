@@ -164,10 +164,19 @@ h3 {
   font-size: 14px;
   color: #1f2329;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 .app.dark .form-item label {
   color: #f1f1f1;
+  background: #2c2c2c;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 input, select {
