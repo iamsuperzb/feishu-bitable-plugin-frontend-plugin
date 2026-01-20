@@ -834,6 +834,7 @@ function App() {
       let hasMore = true
       let offset = '0'
       let pageCount = 0
+      let missingNextCursorOffset: string | null = null
       const maxPages = 100 // 最大页数限制
 
       // 在采集开始前扫描空行（只扫描一次，检查整行是否为空）
@@ -1033,10 +1034,25 @@ function App() {
 
             if (data.has_more) {
               const nextCursor = data.max_cursor ?? data.cursor
-              offset = (nextCursor ?? 0).toString()
-              pageCount++;
-              console.log(`获取第 ${pageCount} 页数据完成`);
-              setMessage(tr('已获取第 {{page}} 页数据，共 {{total}} 条', { page: pageCount, total: totalWritten }));
+              const nextCursorText = nextCursor === undefined || nextCursor === null
+                ? ''
+                : String(nextCursor).trim()
+              const isMissingNextCursor = !nextCursorText || nextCursorText === offset
+              if (isMissingNextCursor) {
+                if (missingNextCursorOffset === offset) {
+                  setMessage(tr('仍未获得下一批起点，已结束当前关键词'))
+                  hasMore = false
+                } else {
+                  missingNextCursorOffset = offset
+                  setMessage(tr('还有更多但没有下一批起点，已重试当前批次'))
+                }
+              } else {
+                missingNextCursorOffset = null
+                offset = nextCursorText
+                pageCount++;
+                console.log(`获取第 ${pageCount} 页数据完成`);
+                setMessage(tr('已获取第 {{page}} 页数据，共 {{total}} 条', { page: pageCount, total: totalWritten }));
+              }
             } else {
               hasMore = false;
               console.log('没有更多数据，结束采集');
@@ -1149,6 +1165,7 @@ function App() {
       let hasMore = true;
       let offset = '0';
       let pageCount = 0;
+      let missingNextCursorOffset: string | null = null
       const maxPages = 100;
 
       // 在采集开始前扫描空行（只扫描一次，检查整行是否为空）
@@ -1355,10 +1372,25 @@ function App() {
 
             if (data.has_more) {
               const nextCursor = data.max_cursor ?? data.cursor
-              offset = (nextCursor ?? 0).toString()
-              pageCount++;
-              console.log(`获取第 ${pageCount} 页数据完成`);
-              setMessage(tr('已获取第 {{page}} 页数据，共 {{total}} 条', { page: pageCount, total: totalWritten }));
+              const nextCursorText = nextCursor === undefined || nextCursor === null
+                ? ''
+                : String(nextCursor).trim()
+              const isMissingNextCursor = !nextCursorText || nextCursorText === offset
+              if (isMissingNextCursor) {
+                if (missingNextCursorOffset === offset) {
+                  setMessage(tr('仍未获得下一批起点，已结束当前账号'))
+                  hasMore = false
+                } else {
+                  missingNextCursorOffset = offset
+                  setMessage(tr('还有更多但没有下一批起点，已重试当前批次'))
+                }
+              } else {
+                missingNextCursorOffset = null
+                offset = nextCursorText
+                pageCount++;
+                console.log(`获取第 ${pageCount} 页数据完成`);
+                setMessage(tr('已获取第 {{page}} 页数据，共 {{total}} 条', { page: pageCount, total: totalWritten }));
+              }
             } else {
               hasMore = false;
               console.log('没有更多数据，结束采集');
