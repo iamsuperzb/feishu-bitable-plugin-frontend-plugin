@@ -41,8 +41,10 @@ import {
 import {
   createFetchWithIdentity,
   fetchAccountInfo as fetchAccountInfoApi,
+  fetchAccountVideos,
   fetchCoverAsJpg,
   fetchCoverOriginal,
+  fetchKeywordVideos,
   getApiBase,
   TIMEOUT_CONFIG
 } from './services/tiktokApi'
@@ -927,22 +929,14 @@ function App() {
           region: region || 'US'
         }
 
-        // 修改API调用路径，使用完整的 URL
-        const apiUrl = `${getApiBase()}/api/tiktok`
-        console.log('请求API URL:', apiUrl)
-
         // 创建新的AbortController
         keywordAbortControllerRef.current = new AbortController();
 
         try {
-          const response = await fetchWithIdentity(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(params),
+          const response = await fetchKeywordVideos(params, fetchWithIdentity, {
+            timeout: TIMEOUT_CONFIG.SEARCH,
             signal: keywordAbortControllerRef.current.signal
-          }, { timeout: TIMEOUT_CONFIG.SEARCH })
+          })
 
           // 处理429配额超限错误
           if (await handle429Error(response)) {
@@ -1239,21 +1233,15 @@ function App() {
         // 再次检查
         if (accountShouldStopRef.current) break;
 
-        const apiUrl = `${getApiBase()}/api/tiktok-user`;
-
         // 创建新的AbortController
         accountAbortControllerRef.current = new AbortController();
 
         try {
           console.log('开始请求API...');
-          const response = await fetchWithIdentity(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(params),
+          const response = await fetchAccountVideos(params, fetchWithIdentity, {
+            timeout: TIMEOUT_CONFIG.SEARCH,
             signal: accountAbortControllerRef.current.signal
-          }, { timeout: TIMEOUT_CONFIG.SEARCH });
+          })
 
           // 处理429配额超限错误
           if (await handle429Error(response)) {

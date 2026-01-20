@@ -196,7 +196,8 @@ export const fetchKeywordVideos = async (
  * @param params - 请求参数
  *   - username: 用户名
  *   - count: 返回数量
- *   - max_cursor: 分页游标
+ *   - offset: 分页偏移
+ *   - region: 地区代码
  * @param fetchFn - 带身份的 fetch 函数
  * @param options - 请求选项（超时、中止信号）
  * @returns Response 对象（需要调用方解析 JSON 和处理响应头）
@@ -206,7 +207,7 @@ export const fetchKeywordVideos = async (
  * @example
  * ```ts
  * const response = await fetchAccountVideos(
- *   { username: 'testuser', count: '20', max_cursor: '0' },
+ *   { username: 'testuser', count: '20', offset: '0', region: 'US' },
  *   fetchWithIdentity,
  *   { timeout: 20000 }
  * )
@@ -218,19 +219,27 @@ export const fetchAccountVideos = async (
   params: {
     username: string
     count: string
-    max_cursor: string
+    offset?: string
+    max_cursor?: string
+    region: string
   },
   fetchFn: FetchWithIdentity,
   options: FetchOptions = {}
 ): Promise<Response> => {
   const apiUrl = `${getApiBase()}/api/tiktok-user`
+  const resolvedOffset = params.offset ?? params.max_cursor ?? '0'
 
   return fetchFn(
     apiUrl,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        username: params.username,
+        count: params.count,
+        offset: resolvedOffset,
+        region: params.region
+      }),
       signal: options.signal
     },
     { timeout: options.timeout ?? TIMEOUT_CONFIG.SEARCH }
