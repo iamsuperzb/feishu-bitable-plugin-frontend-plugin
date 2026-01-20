@@ -17,7 +17,7 @@ import { useUIState } from './hooks/useUIState'
 import { useQuota } from './hooks/useQuota'
 import { useBitable } from './hooks/useBitable'
 import { useStickyHeader } from './hooks/useStickyHeader'
-import { normalizeAccountKey, normalizeUrlKey } from './utils/normalize'
+import { extractAccountName, normalizeAccountKey, normalizeUrlKey } from './utils/normalize'
 import {
   getDefaultAccountInfoTableName,
   getDefaultAccountTableName,
@@ -649,7 +649,7 @@ function App() {
             new Set(
               accountInfoBatchInput
                 .split(/[\n,\r]+/)
-                .map(item => item.trim().replace(/^@/, ''))
+                .map(item => extractAccountName(item))
                 .filter(Boolean)
             )
           )
@@ -679,7 +679,7 @@ function App() {
           for (const record of records) {
             if (stopped || count >= maxScan) break
             const cellValue = await table.getCellValue(accountInfoUsernameField, record.recordId)
-            const name = extractTextFromCell(cellValue).trim().replace(/^@/, '')
+            const name = extractAccountName(extractTextFromCell(cellValue))
             if (name) count++
           }
 
@@ -1061,7 +1061,11 @@ function App() {
   
   // 修改账号视频采集函数
   const writeAccountTikTokData = async () => {
-    if (!username) return;
+    const resolvedUsername = extractAccountName(username)
+    if (!resolvedUsername) {
+      setMessage(tr('请输入账号名称'))
+      return
+    }
     if (quotaUnavailable) {
       setMessage(tr('配额未配置，请联系管理员后再试'))
       return
@@ -1085,7 +1089,7 @@ function App() {
       if (accountTargetTable === 'new') {
         let nextTableName = accountNewTableName
         if (accountTableNameAuto) {
-          const trimmedName = username.trim()
+          const trimmedName = resolvedUsername.trim()
           nextTableName = trimmedName
             ? getDefaultAccountTableName(trimmedName)
             : getDefaultAccountTableName()
@@ -1137,7 +1141,7 @@ function App() {
         if (accountShouldStopRef.current) break;
 
         const params: Record<string, string> = {
-          username,
+          username: resolvedUsername,
           count: '30',
           offset,
           region: userRegion || 'US'
@@ -1504,7 +1508,7 @@ function App() {
           if (accountInfoStopRef.current) return
 
           const cellValue = await activeTable.getCellValue(accountInfoUsernameField, record.recordId)
-          const name = extractTextFromCell(cellValue).trim().replace(/^@/, '')
+          const name = extractAccountName(extractTextFromCell(cellValue))
           if (!name) return
 
           const accountKey = normalizeAccountKey(name)
@@ -1608,7 +1612,7 @@ function App() {
           new Set(
             accountInfoBatchInput
               .split(/[,\n\r]+/)
-              .map(item => item.trim().replace(/^@/, ''))
+              .map(item => extractAccountName(item))
               .filter(Boolean)
           )
         )
@@ -2161,11 +2165,12 @@ function App() {
   useEffect(() => {
     if (accountTargetTable !== 'new') return
     if (!accountTableNameAuto) return
-    if (!username.trim()) {
+    const resolvedUsername = extractAccountName(username)
+    if (!resolvedUsername) {
       setAccountNewTableName(getDefaultAccountTableName())
       return
     }
-    setAccountNewTableName(getDefaultAccountTableName(username.trim()))
+    setAccountNewTableName(getDefaultAccountTableName(resolvedUsername.trim()))
   }, [username, accountTargetTable, accountTableNameAuto])
 
   return (

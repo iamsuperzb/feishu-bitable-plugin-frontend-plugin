@@ -83,3 +83,22 @@ export const normalizeAccountKey = (raw: string): string => {
   if (!name) return ''
   return toAccountUrl(name)
 }
+
+/**
+ * 提取账号名称（支持账号名、@账号名、账号主页链接）
+ *
+ * @param raw - 原始输入
+ * @returns 账号名称，失败返回空字符串
+ */
+export const extractAccountName = (raw: string): string => {
+  const normalized = normalizeAccountKey(raw)
+  if (!normalized) return ''
+
+  try {
+    const url = new URL(normalized)
+    const match = url.pathname.match(/@([^/]+)/)
+    return match?.[1] || ''
+  } catch {
+    return ''
+  }
+}
