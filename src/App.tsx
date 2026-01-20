@@ -693,12 +693,11 @@ function App() {
 
       const collapseDistance = quotaDetailsHeightRef.current > 0 ? quotaDetailsHeightRef.current : 80
       const delta = Math.max(0, scrollTop - quotaOpenScrollTopRef.current)
-      const nextProgress = Math.min(delta / collapseDistance, 1)
+      const nextProgress = Math.min(Math.max(delta / collapseDistance, 0), 1)
 
-      setQuotaCollapseProgress(prev => {
-        const nextValue = Math.max(prev, nextProgress)
-        return Math.abs(nextValue - prev) >= 0.01 ? nextValue : prev
-      })
+      setQuotaCollapseProgress(prev => (
+        Math.abs(nextProgress - prev) >= 0.01 ? nextProgress : prev
+      ))
 
       if (nextProgress >= 1) {
         setQuotaDetailsOpen(false)
