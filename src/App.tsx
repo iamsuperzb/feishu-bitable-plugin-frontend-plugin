@@ -1745,6 +1745,71 @@ function App() {
     audioShouldStopRef.current = false;
     audioAbortControllerRef.current = new AbortController();
     const audioSignal = audioAbortControllerRef.current.signal;
+    type AudioTranscriptResult =
+      | { status: 'ok'; text: string; empty: boolean }
+      | { status: 'quota' }
+      | { status: 'aborted' }
+      | { status: 'error'; error: string };
+
+    const resolveTranscriptText = (text: string | undefined, empty?: boolean) => {
+      const normalized = (text ?? '').trim();
+      if (normalized) return normalized;
+      if (empty) return tr('未识别到有效内容');
+      return tr('转录失败');
+    };
+
+    const parseResponseError = async (response: Response) => {
+      const rawText = await response.text().catch(() => '');
+      if (!rawText) return { data: {}, rawText: '' };
+      try {
+        const data = JSON.parse(rawText);
+        return { data, rawText };
+      } catch {
+        return { data: {}, rawText };
+      }
+    };
+
+    const fetchAudioTranscript = async (videoUrl: string): Promise<AudioTranscriptResult> => {
+      const maxAttempts = 2;
+      const baseDelayMs = 1200;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (audioShouldStopRef.current || audioSignal.aborted) return { status: 'aborted' };
+
+        const response = await fetchWithIdentity(`${getApiBase()}/api/extract-audio`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoUrl }),
+          signal: audioSignal
+        }, { timeout: TIMEOUT_CONFIG.AUDIO_EXTRACT });
+
+        if (await handle429Error(response)) {
+          return { status: 'quota' };
+        }
+
+        if (!response.ok) {
+          const { data, rawText } = await parseResponseError(response);
+          if (response.status === 503 && data?.code === 'TRANSCRIBE_BUSY' && attempt < maxAttempts) {
+            const retryAfter = parseInt(data?.retryAfter, 10);
+            const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
+              ? retryAfter * 1000
+              : baseDelayMs * attempt;
+            await sleep(delayMs);
+            continue;
+          }
+          const errorMessage = data?.error || rawText || tr('转录失败');
+          return { status: 'error', error: errorMessage };
+        }
+
+        handleQuotaHeaders(response);
+        const payload = await response.json().catch(() => ({}));
+        return {
+          status: 'ok',
+          text: payload?.text ?? '',
+          empty: Boolean(payload?.empty)
+        };
+      }
+      return { status: 'error', error: tr('转录失败') };
+    };
 
     try {
       const activeTable = await bitable.base.getActiveTable();
@@ -1814,40 +1879,30 @@ function App() {
           }
 
           try {
-            const response = await fetchWithIdentity(`${getApiBase()}/api/extract-audio`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ videoUrl }),
-              signal: audioSignal
-            }, { timeout: TIMEOUT_CONFIG.AUDIO_EXTRACT });
-
-            if (await handle429Error(response)) {
+            const result = await fetchAudioTranscript(videoUrl);
+            if (result.status === 'quota') {
               if (targetTableMode === 'current') {
                 await activeTable.setCellValue(audioOutputField, record.recordId, '');
               }
               return;
             }
 
-            if (audioShouldStopRef.current) {
+            if (audioShouldStopRef.current || result.status === 'aborted') {
               if (targetTableMode === 'current') {
                 await activeTable.setCellValue(audioOutputField, record.recordId, '');
               }
               return;
             }
 
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error('提取失败:', errorText);
+            if (result.status === 'error') {
+              console.error('提取失败:', result.error);
               if (targetTableMode === 'current') {
                 await activeTable.setCellValue(audioOutputField, record.recordId, '');
               }
               return;
             }
 
-            handleQuotaHeaders(response)
-
-            const { text } = await response.json();
-            const transcript = text || tr('转录失败');
+            const transcript = resolveTranscriptText(result.text, result.empty);
 
             if (targetTableMode === 'current') {
               const fieldMeta = await activeTable.getFieldMetaById(audioOutputField);
@@ -1967,22 +2022,18 @@ function App() {
         for (let i = 0; i < urls.length && !audioShouldStopRef.current; i++) {
           const videoUrl = urls[i];
           try {
-            const response = await fetchWithIdentity(`${getApiBase()}/api/extract-audio`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ videoUrl }),
-              signal: audioSignal
-            }, { timeout: TIMEOUT_CONFIG.AUDIO_EXTRACT });
-            if (await handle429Error(response)) {
+            const result = await fetchAudioTranscript(videoUrl);
+            if (result.status === 'quota') {
               break;
             }
-            if (!response.ok) {
-              console.error('批量转写失败:', await response.text());
+            if (result.status === 'aborted') {
+              break;
+            }
+            if (result.status === 'error') {
+              console.error('批量转写失败:', result.error);
               continue;
             }
-            handleQuotaHeaders(response)
-            const { text } = await response.json();
-            const transcript = text || tr('转录失败');
+            const transcript = resolveTranscriptText(result.text, result.empty);
             const transcriptWriter = audioWriters['转写文案'];
             const recordId = insertedRecordIds[i];
             if (transcriptWriter && recordId) {
