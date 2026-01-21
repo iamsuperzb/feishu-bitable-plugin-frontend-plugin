@@ -2306,10 +2306,7 @@ function App() {
   } as CSSProperties
 
   const handleJoinGroupClick = useCallback(() => {
-    const newWindow = window.open(USER_GROUP_JOIN_LINK, '_blank', 'noopener,noreferrer')
-    if (!newWindow) {
-      window.location.href = USER_GROUP_JOIN_LINK
-    }
+    window.open(USER_GROUP_JOIN_LINK, '_blank', 'noopener,noreferrer')
   }, [])
 
   return (
