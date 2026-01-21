@@ -169,6 +169,8 @@ const resources: Resource = {
       '正在提取音频...': '正在提取音频...',
       '就绪': '就绪',
       '输出字段类型不支持，请选择文本字段': '输出字段类型不支持，请选择文本字段',
+      '加入用户群，领取新手试用': '加入用户群，领取新手试用',
+      '加入用户群': '加入用户群',
       // 配额面板
       'quota.title': '数据点',
       'quota.expand': '展开详情',
@@ -358,6 +360,8 @@ const resources: Resource = {
       '正在提取音频...': 'Extracting audio...',
       '就绪': 'Ready',
       '输出字段类型不支持，请选择文本字段': 'Output field type not supported, please select a text field',
+      '加入用户群，领取新手试用': 'Join the user group to claim a starter trial',
+      '加入用户群': 'Join user group',
       // quota panel
       'quota.title': 'Data points',
       'quota.expand': 'Expand details',
@@ -542,6 +546,8 @@ const resources: Resource = {
       '正在提取音频...': '音声抽出中...',
       '就绪': '準備完了',
       '输出字段类型不支持，请选择文本字段': '出力列の種類が非対応です。テキスト列を選択してください',
+      '加入用户群，领取新手试用': 'ユーザーグループに参加して新規トライアルを受け取る',
+      '加入用户群': 'ユーザーグループに参加',
       // quota panel
       'quota.title': 'データポイント',
       'quota.expand': '詳細を展開',

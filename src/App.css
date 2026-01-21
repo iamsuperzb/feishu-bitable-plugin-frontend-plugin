@@ -899,6 +899,30 @@ button:disabled {
   border-color: #d0d0d0;
 }
 
+.join-group-card {
+  cursor: default;
+}
+
+.join-group-card:hover {
+  background-color: rgba(255, 255, 255, 0.8);
+  border-color: #e8e8e8;
+}
+
+.join-group-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.join-group-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  color: #333;
+}
+
 /* 头部：单行布局 */
 .quota-card-header {
   display: flex;
@@ -1029,6 +1053,15 @@ button:disabled {
 .app.dark .quota-card:hover {
   background-color: rgba(31, 35, 41, 0.82);
   border-color: rgba(255, 255, 255, 0.15);
+}
+
+.app.dark .join-group-card:hover {
+  background-color: rgba(31, 35, 41, 0.75);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.app.dark .join-group-title {
+  color: #f0f0f0;
 }
 
 .app.dark .quota-card-title,

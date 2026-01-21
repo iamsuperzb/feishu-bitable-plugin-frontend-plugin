@@ -371,6 +371,8 @@ const logEnvConfig = () => {
   console.info(`[env-check] VITE_API_BASE_URL=${val}`)
 }
 
+const USER_GROUP_JOIN_LINK = 'https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=640o43c4-a2dd-4c9e-9246-76dcae37f12f'
+
 function App() {
   const { t } = useTranslation()
   const tr = useCallback(
@@ -2303,6 +2305,13 @@ function App() {
     borderTopWidth: quotaDetailVisibility > 0.05 ? '1px' : '0px'
   } as CSSProperties
 
+  const handleJoinGroupClick = useCallback(() => {
+    const newWindow = window.open(USER_GROUP_JOIN_LINK, '_blank', 'noopener,noreferrer')
+    if (!newWindow) {
+      window.location.href = USER_GROUP_JOIN_LINK
+    }
+  }, [])
+
   return (
     <Fragment>
       <div
@@ -2322,11 +2331,11 @@ function App() {
         </div>
 
         {/* ==================== 数据点（置顶固定） ====================  */}
-        {quotaInfo && quotaInfo.status === 'available' && quotaInfo.remaining !== null && quotaInfo.quota !== null ? (
-          <div
-            ref={quotaStickyRef}
-            className={`quota-sticky ${quotaStickyPinned ? 'pinned' : ''}`}
-          >
+        <div
+          ref={quotaStickyRef}
+          className={`quota-sticky ${quotaStickyPinned ? 'pinned' : ''}`}
+        >
+          {quotaInfo && quotaInfo.status === 'available' && quotaInfo.remaining !== null && quotaInfo.quota !== null ? (
             <div
               className="quota-card"
               onClick={() => setQuotaDetailsOpen(prev => !prev)}
@@ -2390,10 +2399,17 @@ function App() {
                 </div>
               </div>
             </div>
+          ) : null}
+
+          <div className="quota-card join-group-card">
+            <div className="join-group-row">
+              <div className="join-group-title">{tr('加入用户群，领取新手试用')}</div>
+              <button type="button" onClick={handleJoinGroupClick}>
+                {tr('加入用户群')}
+              </button>
+            </div>
           </div>
-        ) : (
-          <div ref={quotaStickyRef} className="quota-sticky" />
-        )}
+        </div>
 
 
         {/* ==================== 功能板块（带二级粘性Header）====================  */}
