@@ -13,8 +13,6 @@ interface AccountSectionProps {
   accountNewTableName: string
   loading: boolean
   accountQuotaInsufficient: boolean
-  quotaRemaining: number | null | undefined
-  accountEstimatedCost: number
   accountSelectedFields: Record<string, boolean>
   accountRequiredFields: Set<string>
   setUsername: (val: string) => void
@@ -62,8 +60,6 @@ export default function AccountSection(props: AccountSectionProps) {
     accountNewTableName,
     loading,
     accountQuotaInsufficient,
-    quotaRemaining,
-    accountEstimatedCost,
     accountSelectedFields,
     accountRequiredFields,
     setUsername,
@@ -176,21 +172,6 @@ export default function AccountSection(props: AccountSectionProps) {
               >
                 {tr('开始采集')}
               </button>
-              {accountQuotaInsufficient && (
-                <div
-                  style={{
-                    marginTop: '8px',
-                    padding: '6px 10px',
-                    background: '#fff2e8',
-                    border: '1px solid #ffbb96',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    color: '#ff4d4f'
-                  }}
-                >
-                  ⚠️ {tr('quota.insufficient.page', { need: accountEstimatedCost, remaining: quotaRemaining ?? 0 })}
-                </div>
-              )}
             </>
           ) : (
             collectType === 2 && (
@@ -209,15 +190,15 @@ export default function AccountSection(props: AccountSectionProps) {
           style={{
             marginTop: '12px',
             padding: '8px 12px',
-            background: '#f0f5ff',
-            border: '1px solid #adc6ff',
+            background: accountQuotaInsufficient ? '#fff2e8' : '#f0f5ff',
+            border: accountQuotaInsufficient ? '1px solid #ffbb96' : '1px solid #adc6ff',
             borderRadius: '4px',
             fontSize: '12px',
-            color: '#1890ff',
+            color: accountQuotaInsufficient ? '#ff4d4f' : '#1890ff',
             lineHeight: '1.5'
           }}
         >
-          ℹ️ {tr('quota.account.tip')}
+          {accountQuotaInsufficient ? '⚠️' : 'ℹ️'} {accountQuotaInsufficient ? tr('quota.account.insufficient') : tr('quota.account.tip')}
         </div>
 
         <div className="sub-section">

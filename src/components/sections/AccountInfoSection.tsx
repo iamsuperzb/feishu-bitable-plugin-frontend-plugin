@@ -26,9 +26,6 @@ interface AccountInfoSectionProps {
   setAccountInfoBatchInput: (val: string) => void
   accountInfoLoading: boolean
   accountInfoQuotaInsufficient: boolean
-  accountInfoEstimatedCost: number
-  accountInfoCostPerRow: number
-  quotaRemaining: number | null | undefined
   accountInfoSelectedFields: Record<string, boolean>
   accountInfoRequiredFields: Set<string>
   handleAccountInfoFieldChange: (fieldName: string) => void
@@ -78,9 +75,6 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
     setAccountInfoBatchInput,
     accountInfoLoading,
     accountInfoQuotaInsufficient,
-    accountInfoEstimatedCost,
-    accountInfoCostPerRow,
-    quotaRemaining,
     accountInfoSelectedFields,
     accountInfoRequiredFields,
     handleAccountInfoFieldChange,
@@ -269,21 +263,6 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
               >
                 {tr('开始获取')}
               </button>
-              {accountInfoQuotaInsufficient && (
-                <div
-                  style={{
-                    marginTop: '8px',
-                    padding: '6px 10px',
-                    background: '#fff2e8',
-                    border: '1px solid #ffbb96',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    color: '#ff4d4f'
-                  }}
-                >
-                  ⚠️ {tr('quota.insufficient.row', { need: accountInfoEstimatedCost || accountInfoCostPerRow, remaining: quotaRemaining ?? 0 })}
-                </div>
-              )}
             </>
           ) : (
             <button
@@ -304,10 +283,10 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
             borderRadius: '4px',
             fontSize: '12px',
             color: '#fa8c16',
-            lineHeight: '1.5'
-          }}
-        >
-          ⚠️ {tr('quota.accountInfo.tip')}
+          lineHeight: '1.5'
+        }}
+      >
+          ⚠️ {accountInfoQuotaInsufficient ? tr('quota.accountInfo.insufficient') : tr('quota.accountInfo.tip')}
         </div>
 
         <div className="sub-section">

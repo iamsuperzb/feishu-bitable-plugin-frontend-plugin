@@ -2424,8 +2424,6 @@ function App() {
           keywordNewTableName={keywordNewTableName}
           loading={loading}
           keywordQuotaInsufficient={keywordQuotaInsufficient}
-          quotaRemaining={quotaInfo?.remaining}
-          keywordEstimatedCost={keywordEstimatedCost}
           keywordSelectedFields={keywordSelectedFields}
           keywordRequiredFields={KEYWORD_REQUIRED_FIELDS}
           setQuery={setQuery}
@@ -2451,8 +2449,6 @@ function App() {
           accountNewTableName={accountNewTableName}
           loading={loading}
           accountQuotaInsufficient={accountQuotaInsufficient}
-          quotaRemaining={quotaInfo?.remaining}
-          accountEstimatedCost={accountEstimatedCost}
           accountSelectedFields={accountSelectedFields}
           accountRequiredFields={ACCOUNT_REQUIRED_FIELDS}
           setUsername={setUsername}
@@ -2487,9 +2483,6 @@ function App() {
           setAccountInfoBatchInput={setAccountInfoBatchInput}
           accountInfoLoading={accountInfoLoading}
           accountInfoQuotaInsufficient={accountInfoQuotaInsufficient}
-          accountInfoEstimatedCost={accountInfoEstimatedCost}
-          accountInfoCostPerRow={accountInfoCostPerRow}
-          quotaRemaining={quotaInfo?.remaining}
           accountInfoSelectedFields={accountInfoSelectedFields}
           accountInfoRequiredFields={ACCOUNT_INFO_REQUIRED_FIELDS}
           handleAccountInfoFieldChange={handleAccountInfoFieldChange}
