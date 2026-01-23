@@ -654,7 +654,6 @@ function App() {
     quotaInfo,
     quotaDetailsOpen,
     setQuotaDetailsOpen,
-    handleQuotaHeaders,
     handle429Error,
     consumeQuotaPoints
   } = useQuota({
@@ -963,9 +962,6 @@ function App() {
             console.error('API 响应错误:', errorText)
             throw new Error(`API 请求失败: ${response.status} ${response.statusText || ''}`)
           }
-
-          // 更新配额信息
-          handleQuotaHeaders(response)
 
           const data = await response.json()
           console.log('API 返回数据:', data)
@@ -1283,9 +1279,6 @@ function App() {
             throw new Error(`API 请求失败: ${response.status} ${response.statusText || ''} ${errorText}`);
           }
 
-          // 更新配额信息
-          handleQuotaHeaders(response)
-
           console.log('API请求成功，解析数据...');
           const data = await response.json();
 
@@ -1523,9 +1516,6 @@ function App() {
         const text = await response.text()
         throw new Error(`API 请求失败: ${response.status} ${response.statusText} ${text || ''}`)
       }
-
-      // 更新配额信息
-      handleQuotaHeaders(response)
 
       const data = await response.json()
       return data as AccountInfoResponse
@@ -1945,7 +1935,6 @@ function App() {
             return { status: 'error', error: errorMessage };
           }
 
-          handleQuotaHeaders(response);
           const payload = await response.json().catch(() => ({}));
           return {
             status: 'ok',
