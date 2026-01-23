@@ -901,6 +901,7 @@ button:disabled {
 
 .join-group-card {
   cursor: default;
+  order: 0;
 }
 
 .join-group-card:hover {
