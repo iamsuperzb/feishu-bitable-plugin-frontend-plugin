@@ -12,7 +12,6 @@ import KeywordSection from './components/sections/KeywordSection'
 import AccountSection from './components/sections/AccountSection'
 import AccountInfoSection from './components/sections/AccountInfoSection'
 import AudioSection from './components/sections/AudioSection'
-import SelfCheckSection from './components/sections/SelfCheckSection'
 import { useTheme } from './hooks/useTheme'
 import { useUIState } from './hooks/useUIState'
 import { useQuota } from './hooks/useQuota'
@@ -251,12 +250,6 @@ interface AwemeItem {
     branded_content_type: number;
     bc_label_test_text?: string;
   };
-}
-
-type SelfCheckItem = {
-  label: string;
-  status: 'ok' | 'warn' | 'error';
-  detail?: string;
 }
 
 interface AccountInfoResponse {
@@ -510,10 +503,6 @@ function App() {
   const [audioTargetTable, setAudioTargetTable] = useState<'current' | 'new'>('new')
   const [audioNewTableName, setAudioNewTableName] = useState(getDefaultAudioTableName())
   const [audioTableNameAuto, setAudioTableNameAuto] = useState(true)
-
-  // 基础自检状态
-  const [selfCheckRunning, setSelfCheckRunning] = useState(false)
-  const [selfCheckResults, setSelfCheckResults] = useState<SelfCheckItem[]>([])
 
   const handleKeywordNewTableNameChange = (val: string) => {
     setKeywordNewTableName(val)
@@ -850,61 +839,6 @@ function App() {
       setMessage(tr('音频提取已停止'));
     }, 500);
   };
-
-  const runSelfCheck = async () => {
-    if (selfCheckRunning) return
-    setSelfCheckRunning(true)
-    const shouldUpdateMessage = !loading && !isCollecting && !accountInfoLoading && !audioLoading
-    if (shouldUpdateMessage) setMessage(tr('正在自检...'))
-
-    const results: SelfCheckItem[] = []
-
-    if (userIdentity?.baseUserId && userIdentity?.tenantKey) {
-      results.push({ label: tr('账号已就绪'), status: 'ok' })
-    } else {
-      results.push({ label: tr('账号已就绪'), status: 'error', detail: tr('尚未识别当前账号') })
-    }
-
-    if (isCollecting || accountInfoLoading || audioLoading) {
-      results.push({ label: tr('当前状态'), status: 'warn', detail: tr('有任务在进行，建议完成后再检查') })
-    }
-
-    try {
-      const table = await bitable.base.getActiveTable()
-      if (!table) {
-        results.push({ label: tr('当前表格'), status: 'error', detail: tr('无法访问当前表格') })
-      } else {
-        const fieldMetaList = await table.getFieldMetaList()
-        if (Array.isArray(fieldMetaList) && fieldMetaList.length > 0) {
-          results.push({ label: tr('当前表格'), status: 'ok' })
-        } else {
-          results.push({ label: tr('当前表格'), status: 'warn', detail: tr('表格内没有可用字段') })
-        }
-      }
-    } catch {
-      results.push({ label: tr('当前表格'), status: 'error', detail: tr('暂时无法访问') })
-    }
-
-    if (!quotaInfo) {
-      results.push({ label: tr('剩余次数'), status: 'warn', detail: tr('暂时未能读取') })
-    } else if (quotaInfo.status === 'unavailable') {
-      results.push({ label: tr('剩余次数'), status: 'warn', detail: tr('暂不可用') })
-    } else if (quotaInfo.status === 'degraded') {
-      results.push({ label: tr('剩余次数'), status: 'warn', detail: tr('暂时不稳定') })
-    } else if (typeof quotaInfo.remaining === 'number' && typeof quotaInfo.quota === 'number') {
-      results.push({
-        label: tr('剩余次数'),
-        status: 'ok',
-        detail: tr('剩余 {{remaining}} / {{quota}}', { remaining: quotaInfo.remaining, quota: quotaInfo.quota })
-      })
-    } else {
-      results.push({ label: tr('剩余次数'), status: 'warn', detail: tr('暂时未能读取') })
-    }
-
-    setSelfCheckResults(results)
-    if (shouldUpdateMessage) setMessage(tr('自检完成'))
-    setSelfCheckRunning(false)
-  }
 
   // 创建进度更新节流函数
   const makeProgressThrottler = (intervalMs = 5000, batchSize = 10) => {
@@ -2208,8 +2142,6 @@ function App() {
   const accountOpen = activeSection === 'account'
   const accountInfoOpen = activeSection === 'accountInfo'
   const audioOpen = activeSection === 'audio'
-  const selfCheckOpen = activeSection === 'selfCheck'
-
   // 配额预检查：按行/页估算所需数据点
   const keywordCostPerPage = 1
   const accountCostPerPage = 2
@@ -2510,15 +2442,6 @@ function App() {
           audioLoading={audioLoading}
           handleAudioExtract={handleAudioExtract}
           handleAudioStop={stopAudioExtraction}
-        />
-
-        <SelfCheckSection
-          tr={tr}
-          open={selfCheckOpen}
-          onToggle={() => toggleSection('selfCheck')}
-          running={selfCheckRunning}
-          results={selfCheckResults}
-          onRun={runSelfCheck}
         />
 
         {/* 处理状态板块 - 固定在底部 */}
