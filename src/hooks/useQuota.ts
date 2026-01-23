@@ -17,7 +17,7 @@
  * - degraded: 配额系统降级（允许采集但不显示配额）
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { UserIdentity } from '../types/bitable'
 import { getApiBase, TIMEOUT_CONFIG } from '../services/tiktokApi'
 import i18n from '../i18n'
@@ -97,6 +97,8 @@ export const useQuota = (options: UseQuotaOptions) => {
 
   // 配额信息状态
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null)
+  const [localConsumed, setLocalConsumed] = useState(0)
+  const [quotaResetAt, setQuotaResetAt] = useState<string | null>(null)
 
   // 配额详情展开状态
   const [quotaDetailsOpen, setQuotaDetailsOpen] = useState(false)
@@ -202,6 +204,10 @@ export const useQuota = (options: UseQuotaOptions) => {
       const data = await response.json().catch(() => ({}))
 
       // 处理不可用状态
+      if (data?.resetAt && typeof data.resetAt === 'string') {
+        setQuotaResetAt(prev => (prev === data.resetAt ? prev : data.resetAt))
+      }
+
       if (data?.status === 'unavailable') {
         console.info('[quota] 配额系统未启用')
         setQuotaInfo({ remaining: null, quota: null, status: 'unavailable' })
@@ -223,6 +229,16 @@ export const useQuota = (options: UseQuotaOptions) => {
     }
   }, [userIdentity, fetchWithIdentity, handleQuotaHeaders, setMessage])
 
+  useEffect(() => {
+    if (!quotaResetAt) return
+    setLocalConsumed(0)
+  }, [quotaResetAt])
+
+  useEffect(() => {
+    if (!userIdentity) return
+    setLocalConsumed(0)
+  }, [userIdentity])
+
   // 用户身份就绪后主动获取配额，并每10分钟定期刷新
   useEffect(() => {
     if (!userIdentity) return
@@ -241,11 +257,24 @@ export const useQuota = (options: UseQuotaOptions) => {
     }
   }, [userIdentity, fetchQuotaInfo])
 
+  const displayQuotaInfo = useMemo(() => {
+    if (!quotaInfo) return null
+    if (quotaInfo.remaining === null || quotaInfo.quota === null) return quotaInfo
+    const remaining = Math.max(quotaInfo.remaining - localConsumed, 0)
+    return { ...quotaInfo, remaining }
+  }, [quotaInfo, localConsumed])
+
+  const consumeQuotaPoints = useCallback((count: number) => {
+    if (!count || count <= 0) return
+    setLocalConsumed(prev => prev + count)
+  }, [])
+
   return {
-    quotaInfo,
+    quotaInfo: displayQuotaInfo,
     quotaDetailsOpen,
     setQuotaDetailsOpen,
     handleQuotaHeaders,
-    handle429Error
+    handle429Error,
+    consumeQuotaPoints
   }
 }

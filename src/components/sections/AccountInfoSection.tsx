@@ -257,8 +257,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                 onClick={handleAccountInfoFetch}
                 disabled={
                   (accountInfoMode === 'column' && !accountInfoUsernameField) ||
-                  (accountInfoMode === 'batch' && !accountInfoBatchInput.trim()) ||
-                  accountInfoQuotaInsufficient
+                  (accountInfoMode === 'batch' && !accountInfoBatchInput.trim())
                 }
               >
                 {tr('开始获取')}

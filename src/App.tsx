@@ -655,7 +655,8 @@ function App() {
     quotaDetailsOpen,
     setQuotaDetailsOpen,
     handleQuotaHeaders,
-    handle429Error
+    handle429Error,
+    consumeQuotaPoints
   } = useQuota({
     userIdentity,
     fetchWithIdentity,
@@ -745,7 +746,7 @@ function App() {
     }))
   }
 
-  // 估算账号信息需处理的行数（用于配额预估，最多扫描200行）
+  // 估算账号信息需处理的行数（用于剩余额度提示，最多扫描200行）
   useEffect(() => {
     let stopped = false
 
@@ -852,6 +853,17 @@ function App() {
     }
   }
 
+  const applyQuotaConsumption = (currentRemaining: number | null, count: number) => {
+    if (!count || count <= 0) return currentRemaining
+    consumeQuotaPoints(count)
+    if (typeof currentRemaining !== 'number') return null
+    return Math.max(currentRemaining - count, 0)
+  }
+
+  const formatRemaining = (remaining: number | null) => (
+    typeof remaining === 'number' ? remaining : '-'
+  )
+
   // 写入关键词搜索 TikTok 数据
   const writeKeywordTikTokData = async () => {
     if (!query) return
@@ -904,6 +916,7 @@ function App() {
       // 收集已有视频链接用于去重
       const existingLinks = await collectExistingKeys(targetTable, '视频链接', normalizeUrlKey, { maxScan: 5000 })
       let totalWritten = 0
+      let remainingAfterWrite = typeof quotaInfo?.remaining === 'number' ? quotaInfo.remaining : null
       let hasMore = true
       let offset = '0'
       let pageCount = 0
@@ -1057,16 +1070,20 @@ function App() {
               }
 
               if (recordsToInsert.length) {
-                await addRecordsInBatches(targetTable, recordsToInsert, {
+                const { appendedCount, filledCount } = await addRecordsInBatches(targetTable, recordsToInsert, {
                   emptyRecordIds,
                   stopRef: keywordShouldStopRef
                 });
-                totalWritten += recordsToInsert.length;
+                const writtenCount = appendedCount + filledCount
+                remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
+                totalWritten += writtenCount;
                 setMessage(tr(keywordTargetTable === 'new'
                   ? '已写入新表 {{table}} 共 {{count}} 条'
                   : '已写入 {{count}} 条数据', {
                   table: targetTableName || '',
-                  count: totalWritten
+                  count: totalWritten,
+                  used: totalWritten,
+                  remaining: formatRemaining(remainingAfterWrite)
                 }));
               }
             }
@@ -1128,7 +1145,11 @@ function App() {
 
       // 采集完成或停止
       console.log(`采集结束，共写入 ${totalWritten} 条数据，停止状态: ${keywordShouldStopRef.current}`);
-      setMessage(tr(keywordShouldStopRef.current ? '已停止采集，成功写入 {{count}} 条数据' : '成功写入 {{count}} 条数据', { count: totalWritten }));
+      setMessage(tr(keywordShouldStopRef.current ? '已停止采集，成功写入 {{count}} 条数据' : '成功写入 {{count}} 条数据', {
+        count: totalWritten,
+        used: totalWritten,
+        remaining: formatRemaining(remainingAfterWrite)
+      }));
     } catch (error) {
       console.error('写入数据失败:', error);
       setMessage(tr('写入数据失败: {{error}}', { error: error instanceof Error ? error.message : '未知错误' }));
@@ -1207,6 +1228,7 @@ function App() {
 
       const existingLinks = await collectExistingKeys(targetTable, '视频链接', normalizeUrlKey, { maxScan: 5000 })
       let totalWritten = 0;
+      let remainingAfterWrite = typeof quotaInfo?.remaining === 'number' ? quotaInfo.remaining : null
       let hasMore = true;
       let offset = '0';
       let pageCount = 0;
@@ -1373,16 +1395,20 @@ function App() {
               }
 
               if (recordsToInsert.length) {
-                await addRecordsInBatches(targetTable, recordsToInsert, {
+                const { appendedCount, filledCount } = await addRecordsInBatches(targetTable, recordsToInsert, {
                   emptyRecordIds,
                   stopRef: accountShouldStopRef
                 });
-                totalWritten += recordsToInsert.length;
+                const writtenCount = appendedCount + filledCount
+                remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
+                totalWritten += writtenCount;
                 setMessage(tr(accountTargetTable === 'new'
                   ? '已写入新表 {{table}} 共 {{count}} 条'
                   : '已写入 {{count}} 条数据', {
                   table: targetTableName || '',
-                  count: totalWritten
+                  count: totalWritten,
+                  used: totalWritten,
+                  remaining: formatRemaining(remainingAfterWrite)
                 }));
               }
             }
@@ -1444,7 +1470,11 @@ function App() {
 
       // 采集完成或停止
       console.log(`采集结束，共写入 ${totalWritten} 条数据，停止状态: ${accountShouldStopRef.current}`);
-      setMessage(tr(accountShouldStopRef.current ? '已停止采集，成功写入 {{count}} 条数据' : '成功写入 {{count}} 条数据', { count: totalWritten }));
+      setMessage(tr(accountShouldStopRef.current ? '已停止采集，成功写入 {{count}} 条数据' : '成功写入 {{count}} 条数据', {
+        count: totalWritten,
+        used: totalWritten,
+        remaining: formatRemaining(remainingAfterWrite)
+      }));
     } catch (error) {
       console.error('写入数据失败:', error);
       setMessage(tr('写入数据失败: {{error}}', { error: error instanceof Error ? error.message : '未知错误' }));
@@ -1505,6 +1535,7 @@ function App() {
       setAccountInfoLoading(true)
       accountInfoStopRef.current = false
       setMessage(tr('正在获取账号信息...'))
+      let remainingAfterWrite = typeof quotaInfo?.remaining === 'number' ? quotaInfo.remaining : null
       const activeTable = await bitable.base.getActiveTable()
       if (!activeTable) throw new Error('无法获取当前表格')
 
@@ -1549,7 +1580,7 @@ function App() {
         let processed = 0
         let skipped = 0
         const cache = new Map<string, AccountInfoResponse>()
-        const concurrency = 5
+        const concurrency = 1
         const reportProgress = makeProgressThrottler()
 
         // 批量写入新表数据
@@ -1557,8 +1588,14 @@ function App() {
           if (!isNewTargetTable || !newTableRecords.length || accountInfoStopRef.current) return
           const batch = newTableRecords.splice(0, newTableRecords.length)
           const { appendedCount, filledCount } = await addRecordsInBatches(targetTable, batch, { stopRef: accountInfoStopRef })
-          processed += appendedCount + filledCount
-          setMessage(tr('已更新 {{count}} 条账号信息', { count: processed }) + (skipped > 0 ? tr('，跳过 {{skipped}} 条', { skipped }) : ''))
+          const writtenCount = appendedCount + filledCount
+          processed += writtenCount
+          remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
+          setMessage(tr('已更新 {{count}} 条账号信息', {
+            count: processed,
+            used: processed,
+            remaining: formatRemaining(remainingAfterWrite)
+          }) + (skipped > 0 ? tr('，跳过 {{skipped}} 条', { skipped }) : ''))
         }
 
         // 辅助函数：将账号信息写入指定记录
@@ -1633,8 +1670,13 @@ function App() {
             } else {
               await applyRecordFields(record.recordId, recordData)
               processed++
+              remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, 1)
               reportProgress(processed, () => {
-                setMessage(tr('已更新 {{count}} 条账号信息', { count: processed }) + (skipped > 0 ? tr('，跳过 {{skipped}} 条', { skipped }) : ''))
+                setMessage(tr('已更新 {{count}} 条账号信息', {
+                  count: processed,
+                  used: processed,
+                  remaining: formatRemaining(remainingAfterWrite)
+                }) + (skipped > 0 ? tr('，跳过 {{skipped}} 条', { skipped }) : ''))
               })
             }
           } catch (error) {
@@ -1660,11 +1702,24 @@ function App() {
         }
 
         if (accountInfoStopRef.current) {
-          setMessage(tr('已停止，成功更新 {{count}} 条账号信息', { count: processed }))
+          setMessage(tr('已停止，成功更新 {{count}} 条账号信息', {
+            count: processed,
+            used: processed,
+            remaining: formatRemaining(remainingAfterWrite)
+          }))
         } else if (isNewTargetTable) {
-          setMessage(tr('已写入新表格「{{tableName}}」，共 {{count}} 条记录', { tableName: targetTableName || accountInfoColumnNewTableName, count: processed }))
+          setMessage(tr('已写入新表格「{{tableName}}」，共 {{count}} 条记录', {
+            tableName: targetTableName || accountInfoColumnNewTableName,
+            count: processed,
+            used: processed,
+            remaining: formatRemaining(remainingAfterWrite)
+          }))
         } else {
-          setMessage(tr('账号信息更新完成，共 {{count}} 条', { count: processed }) + (skipped > 0 ? tr('，跳过 {{skipped}} 条', { skipped }) : ''))
+          setMessage(tr('账号信息更新完成，共 {{count}} 条', {
+            count: processed,
+            used: processed,
+            remaining: formatRemaining(remainingAfterWrite)
+          }) + (skipped > 0 ? tr('，跳过 {{skipped}} 条', { skipped }) : ''))
         }
       } else {
         // 模式2: 批量输入账号
@@ -1742,14 +1797,25 @@ function App() {
         }
 
         if (recordsToInsert.length && !accountInfoStopRef.current) {
-          await addRecordsInBatches(targetTable, recordsToInsert, {
+          const { appendedCount, filledCount } = await addRecordsInBatches(targetTable, recordsToInsert, {
             emptyRecordIds,
             stopRef: accountInfoStopRef
           })
+          const writtenCount = appendedCount + filledCount
+          remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
           if (batchTargetTable === 'new') {
-            setMessage(tr('已写入新表格「{{tableName}}」，共 {{count}} 条记录', { tableName: targetTableName, count: recordsToInsert.length }))
+            setMessage(tr('已写入新表格「{{tableName}}」，共 {{count}} 条记录', {
+              tableName: targetTableName,
+              count: writtenCount,
+              used: writtenCount,
+              remaining: formatRemaining(remainingAfterWrite)
+            }))
           } else {
-            setMessage(tr('账号信息获取完成，新增 {{count}} 条记录', { count: recordsToInsert.length }))
+            setMessage(tr('账号信息获取完成，新增 {{count}} 条记录', {
+              count: writtenCount,
+              used: writtenCount,
+              remaining: formatRemaining(remainingAfterWrite)
+            }))
           }
         } else if (accountInfoStopRef.current) {
           setMessage(tr('已停止，获取了 {{count}} 条账号信息', { count: processed }))
@@ -1896,6 +1962,7 @@ function App() {
       if (!activeTable) {
         throw new Error('无法获取当前表格');
       }
+      let remainingAfterWrite = typeof quotaInfo?.remaining === 'number' ? quotaInfo.remaining : null
 
       // 目标表
       let targetTable = activeTable;
@@ -1939,7 +2006,7 @@ function App() {
       // 列模式：遍历当前表记录
       if (audioMode === 'column') {
         const pageSize = 200;
-        const concurrency = 5;
+        const concurrency = 1;
         let pageToken: string | undefined;
         let processedCount = 0;
         let hasMore = true;
@@ -1989,8 +2056,13 @@ function App() {
               if (fieldMeta.type === FieldType.Text) {
                 await activeTable.setCellValue(audioOutputField, record.recordId, transcript);
                 processedCount++;
+                remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, 1)
                 reportProgress(processedCount, () => {
-                  setMessage(tr('成功写入数据，已处理 {{count}} 条记录', { count: processedCount }));
+                  setMessage(tr('成功写入数据，已处理 {{count}} 条记录', {
+                    count: processedCount,
+                    used: processedCount,
+                    remaining: formatRemaining(remainingAfterWrite)
+                  }));
                 });
               } else {
                 console.warn('输出字段类型不支持，请选择文本字段');
@@ -2014,7 +2086,13 @@ function App() {
                 await targetTable.addRecord(payload);
               }
               processedCount++;
-              setMessage(tr('已写入新表 {{table}}，处理 {{count}} 条记录', { table: targetTableName || '', count: processedCount }));
+              remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, 1)
+              setMessage(tr('已写入新表 {{table}}，处理 {{count}} 条记录', {
+                table: targetTableName || '',
+                count: processedCount,
+                used: processedCount,
+                remaining: formatRemaining(remainingAfterWrite)
+              }));
             }
           } catch (error) {
             if (error instanceof Error) {
@@ -2054,11 +2132,20 @@ function App() {
         }
 
         if (audioShouldStopRef.current) {
-          setMessage(tr('用户停止了提取，已处理 {{count}} 条记录', { count: processedCount }));
+          setMessage(tr('用户停止了提取，已处理 {{count}} 条记录', {
+            count: processedCount,
+            used: processedCount,
+            remaining: formatRemaining(remainingAfterWrite)
+          }));
         } else {
           setMessage(tr(targetTableMode === 'new'
             ? '处理完成，已写入新表 {{table}} 共 {{count}} 条记录'
-            : '处理完成，共处理 {{count}} 条记录', { table: targetTableName || '', count: processedCount }));
+            : '处理完成，共处理 {{count}} 条记录', {
+            table: targetTableName || '',
+            count: processedCount,
+            used: processedCount,
+            remaining: formatRemaining(remainingAfterWrite)
+          }));
         }
       } else {
         // 批量模式：从输入框解析视频链接列表
@@ -2095,6 +2182,9 @@ function App() {
         const emptyIds: string[] = [];
         const addResult = await addRecordsInBatches(targetTable, recordsToInsert, { emptyRecordIds: emptyIds, stopRef: audioShouldStopRef });
         const insertedRecordIds = addResult.recordIds;
+        const writtenCount = addResult.appendedCount + addResult.filledCount
+        remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
+        const remainingText = formatRemaining(remainingAfterWrite)
 
         // 按顺序转写并回填文案（简单串行，避免超时）
         let processedCount = 0;
@@ -2121,7 +2211,12 @@ function App() {
             }
             processedCount++;
             reportProgress(processedCount, () => {
-              setMessage(tr('已写入新表 {{table}}，处理 {{count}} 条记录', { table: targetTableName || '', count: processedCount }));
+              setMessage(tr('已写入新表 {{table}}，处理 {{count}} 条记录', {
+                table: targetTableName || '',
+                count: processedCount,
+                used: writtenCount,
+                remaining: remainingText
+              }));
             });
           } catch (error) {
             console.error('批量转写失败:', error);
@@ -2142,20 +2237,13 @@ function App() {
   const accountOpen = activeSection === 'account'
   const accountInfoOpen = activeSection === 'accountInfo'
   const audioOpen = activeSection === 'audio'
-  // 配额预检查：按行/页估算所需数据点
-  const keywordCostPerPage = 1
-  const accountCostPerPage = 2
-  const accountInfoCostPerRow = 2
-  const keywordEstimatedPages = 1 // 单页最多15行
-  const accountEstimatedPages = 1 // 单页最多30行
-  const keywordEstimatedCost = keywordCostPerPage * keywordEstimatedPages
-  const accountEstimatedCost = accountCostPerPage * accountEstimatedPages
-  const accountInfoEstimatedCost = accountInfoEstimatedRows * accountInfoCostPerRow
+  // 配额提示：剩余为0时提醒，但不阻断写入
   const quotaUnavailable = quotaInfo?.status === 'unavailable'
   const quotaAvailable = quotaInfo?.status === 'available' && typeof quotaInfo?.remaining === 'number'
-  const keywordQuotaInsufficient = quotaAvailable && (quotaInfo?.remaining ?? 0) < keywordEstimatedCost
-  const accountQuotaInsufficient = quotaAvailable && (quotaInfo?.remaining ?? 0) < accountEstimatedCost
-  const accountInfoQuotaInsufficient = quotaAvailable && (quotaInfo?.remaining ?? 0) < accountInfoEstimatedCost && accountInfoEstimatedCost > 0
+  const quotaZero = quotaAvailable && (quotaInfo?.remaining ?? 0) <= 0
+  const keywordQuotaInsufficient = quotaZero
+  const accountQuotaInsufficient = quotaZero
+  const accountInfoQuotaInsufficient = quotaZero && accountInfoEstimatedRows > 0
 
   // 批量输入仅支持新建表格
   useEffect(() => {
