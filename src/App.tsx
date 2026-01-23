@@ -419,7 +419,7 @@ function App() {
     '关键词': true,
     '发布时间': true,
     '视频链接': true,
-    '视频封面': true,
+    '视频封面': false,
     '视频播放量': true,
     '点赞数量': true,
     '评论数量': true,
@@ -444,7 +444,7 @@ function App() {
   // 账号视频采集字段选择
   const [accountSelectedFields, setAccountSelectedFields] = useState<{[key: string]: boolean}>({
     '视频链接': true,
-    '视频封面': true,
+    '视频封面': false,
     '视频发布时间': true,
     '视频标题': true,
     '播放量': true,
