@@ -2327,6 +2327,15 @@ function App() {
           </div>
         </div>
 
+        <div className="quota-card join-group-card">
+          <div className="join-group-row">
+            <div className="join-group-title">{tr('加入用户群，领取新手试用')}</div>
+            <button type="button" onClick={handleJoinGroupClick}>
+              {tr('加入用户群')}
+            </button>
+          </div>
+        </div>
+
         {/* ==================== 数据点（置顶固定） ====================  */}
         <div
           ref={quotaStickyRef}
@@ -2397,15 +2406,6 @@ function App() {
               </div>
             </div>
           ) : null}
-
-          <div className="quota-card join-group-card">
-            <div className="join-group-row">
-              <div className="join-group-title">{tr('加入用户群，领取新手试用')}</div>
-              <button type="button" onClick={handleJoinGroupClick}>
-                {tr('加入用户群')}
-              </button>
-            </div>
-          </div>
         </div>
 
 
