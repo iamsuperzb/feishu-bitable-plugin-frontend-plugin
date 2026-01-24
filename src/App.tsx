@@ -674,11 +674,17 @@ function App() {
   const quotaOpenScrollTopRef = useRef(0)
   const quotaScrollTopRef = useRef(0)
   const [quotaCollapseProgress, setQuotaCollapseProgress] = useState(0)
+  const isTesterPlan = useMemo(() => {
+    const code = quotaInfo?.planCode?.toLowerCase() ?? ''
+    const name = quotaInfo?.planName ?? ''
+    return code === 'tester' || name.includes('测试') || name.toLowerCase().includes('test')
+  }, [quotaInfo?.planCode, quotaInfo?.planName])
   const quotaPlanLabel = useMemo(() => {
+    if (isTesterPlan) return tr('plan.tester')
     if (quotaInfo?.planType === 'monthly') return tr('plan.monthly')
     if (quotaInfo?.planType === 'points') return tr('plan.points')
     return tr('plan.trial')
-  }, [quotaInfo?.planType, tr])
+  }, [isTesterPlan, quotaInfo?.planType, tr])
   const quotaResetLabel = useMemo(() => (
     quotaInfo?.planType && quotaInfo.planType !== 'trial'
       ? tr('quota.expire.label')
