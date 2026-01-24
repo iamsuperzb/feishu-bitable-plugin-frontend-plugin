@@ -708,6 +708,16 @@ function App() {
     const twoDaysMs = 2 * 24 * 60 * 60 * 1000
     return diff > 0 && diff <= twoDaysMs
   }, [quotaInfo?.planType, quotaInfo?.resetAt])
+  const statusIdleText = useMemo(() => {
+    const segments = [tr('就绪')]
+    if (quotaInfo?.planType) {
+      segments.push(`${tr('status.level.label')}: ${quotaPlanLabel}`)
+    }
+    if (tableId) {
+      segments.push(`ID: ${tableId.slice(0, 8)}...`)
+    }
+    return segments.join(' | ')
+  }, [quotaInfo?.planType, quotaPlanLabel, tableId, tr])
 
   useEffect(() => {
     if (!quotaDetailsOpen) {
@@ -2648,7 +2658,7 @@ function App() {
                 {audioLoading && !message && <span className="status-loading">{tr('正在提取音频...')}</span>}
               </>
             ) : (
-              <span className="status-idle">{tr('就绪')} | {tableId ? `ID: ${tableId.slice(0, 8)}...` : ''}</span>
+              <span className="status-idle">{statusIdleText}</span>
             )}
           </div>
         </div>
