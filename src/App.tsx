@@ -708,16 +708,28 @@ function App() {
     const twoDaysMs = 2 * 24 * 60 * 60 * 1000
     return diff > 0 && diff <= twoDaysMs
   }, [quotaInfo?.planType, quotaInfo?.resetAt])
+  const remainingDays = useMemo(() => {
+    if (!quotaInfo?.resetAt) return null
+    const expireAt = new Date(quotaInfo.resetAt).getTime()
+    if (Number.isNaN(expireAt)) return null
+    const diff = expireAt - Date.now()
+    if (diff <= 0) return 0
+    const dayMs = 24 * 60 * 60 * 1000
+    return Math.ceil(diff / dayMs)
+  }, [quotaInfo?.resetAt])
   const statusIdleText = useMemo(() => {
     const segments = [tr('就绪')]
     if (quotaInfo?.planType) {
       segments.push(`${tr('status.level.label')}: ${quotaPlanLabel}`)
     }
+    if (quotaInfo?.planType && remainingDays !== null) {
+      segments.push(tr('status.remaining', { days: remainingDays }))
+    }
     if (tableId) {
       segments.push(`ID: ${tableId.slice(0, 8)}...`)
     }
     return segments.join(' | ')
-  }, [quotaInfo?.planType, quotaPlanLabel, tableId, tr])
+  }, [quotaInfo?.planType, quotaPlanLabel, remainingDays, tableId, tr])
 
   useEffect(() => {
     if (!quotaDetailsOpen) {
