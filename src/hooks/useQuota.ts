@@ -105,8 +105,6 @@ export const useQuota = (options: UseQuotaOptions) => {
 
   // 配额信息状态
   const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null)
-  const [localConsumed, setLocalConsumed] = useState(0)
-  const [quotaResetAt, setQuotaResetAt] = useState<string | null>(null)
 
   // 配额详情展开状态
   const [quotaDetailsOpen, setQuotaDetailsOpen] = useState(false)
@@ -233,10 +231,6 @@ export const useQuota = (options: UseQuotaOptions) => {
       const data = await response.json().catch(() => ({}))
 
       // 处理不可用状态
-      if (data?.resetAt && typeof data.resetAt === 'string') {
-        setQuotaResetAt(prev => (prev === data.resetAt ? prev : data.resetAt))
-      }
-
       if (data?.status === 'unavailable') {
         console.info('[quota] 配额系统未启用')
         setQuotaInfo({ remaining: null, quota: null, status: 'unavailable' })
@@ -262,16 +256,6 @@ export const useQuota = (options: UseQuotaOptions) => {
     }
   }, [userIdentity, fetchWithIdentity, handleQuotaHeaders, setMessage])
 
-  useEffect(() => {
-    if (!quotaResetAt) return
-    setLocalConsumed(0)
-  }, [quotaResetAt])
-
-  useEffect(() => {
-    if (!userIdentity) return
-    setLocalConsumed(0)
-  }, [userIdentity])
-
   // 用户身份就绪后主动获取配额，并每10分钟定期刷新
   useEffect(() => {
     if (!userIdentity) return
@@ -290,17 +274,76 @@ export const useQuota = (options: UseQuotaOptions) => {
     }
   }, [userIdentity, fetchQuotaInfo])
 
-  const displayQuotaInfo = useMemo(() => {
-    if (!quotaInfo) return null
-    if (quotaInfo.remaining === null || quotaInfo.quota === null) return quotaInfo
-    const remaining = Math.max(quotaInfo.remaining - localConsumed, 0)
-    return { ...quotaInfo, remaining }
-  }, [quotaInfo, localConsumed])
+  const displayQuotaInfo = useMemo(() => quotaInfo, [quotaInfo])
 
-  const consumeQuotaPoints = useCallback((count: number) => {
-    if (!count || count <= 0) return
-    setLocalConsumed(prev => prev + count)
-  }, [])
+  const consumeQuota = useCallback(async (count: number): Promise<QuotaInfo | null> => {
+    if (!count || count <= 0) return quotaInfo
+    if (!userIdentity) {
+      console.warn('[quota] 用户身份未就绪，跳过扣点同步')
+      return null
+    }
+
+    try {
+      console.log(`[quota] 扣除点数: ${count}`)
+      const response = await fetchWithIdentity(`${getApiBase()}/api/quota/consume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count })
+      }, { timeout: TIMEOUT_CONFIG.QUOTA })
+
+      if (response.status === 429) {
+        const clone = response.clone()
+        await handle429Error(clone)
+        const data = await response.json().catch(() => ({}))
+        const nextInfo: QuotaInfo = {
+          remaining: typeof data?.remaining === 'number' ? data.remaining : 0,
+          quota: typeof data?.quota === 'number' ? data.quota : quotaInfo?.quota ?? null,
+          status: 'available',
+          planType: data?.planType ?? quotaInfo?.planType,
+          planCode: data?.planCode ?? quotaInfo?.planCode ?? null,
+          planName: data?.planName ?? quotaInfo?.planName ?? null,
+          resetAt: data?.resetAt ?? quotaInfo?.resetAt ?? null
+        }
+        setQuotaInfo(nextInfo)
+        return nextInfo
+      }
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        console.warn('[quota] 扣点失败:', data?.message || response.statusText)
+        setMessage(data?.message || i18n.t('暂时无法获取配额，请稍后重试'))
+        return null
+      }
+
+      handleQuotaHeaders(response)
+      const data = await response.json().catch(() => ({}))
+      if (typeof data?.remaining === 'number' && typeof data?.quota === 'number') {
+        const nextInfo = {
+          remaining: data.remaining,
+          quota: data.quota,
+          status: 'available',
+          planType: data.planType,
+          planCode: data.planCode ?? null,
+          planName: data.planName ?? null,
+          resetAt: data.resetAt ?? null
+        }
+        setQuotaInfo(nextInfo)
+        return nextInfo
+      }
+    } catch (error) {
+      console.error('[quota] 扣点失败:', error)
+      setMessage(i18n.t('网络错误，无法获取配额信息'))
+    }
+
+    return null
+  }, [
+    fetchWithIdentity,
+    handle429Error,
+    handleQuotaHeaders,
+    quotaInfo,
+    setMessage,
+    userIdentity
+  ])
 
   return {
     quotaInfo: displayQuotaInfo,
@@ -308,7 +351,7 @@ export const useQuota = (options: UseQuotaOptions) => {
     setQuotaDetailsOpen,
     handleQuotaHeaders,
     handle429Error,
-    consumeQuotaPoints,
+    consumeQuota,
     refreshQuota: fetchQuotaInfo
   }
 }

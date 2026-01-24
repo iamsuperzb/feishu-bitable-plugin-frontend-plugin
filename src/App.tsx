@@ -659,7 +659,7 @@ function App() {
     quotaDetailsOpen,
     setQuotaDetailsOpen,
     handle429Error,
-    consumeQuotaPoints,
+    consumeQuota,
     refreshQuota
   } = useQuota({
     userIdentity,
@@ -925,11 +925,11 @@ function App() {
     }
   }
 
-  const applyQuotaConsumption = (currentRemaining: number | null, count: number) => {
+  const applyQuotaConsumption = async (currentRemaining: number | null, count: number) => {
     if (!count || count <= 0) return currentRemaining
-    consumeQuotaPoints(count)
-    if (typeof currentRemaining !== 'number') return null
-    return Math.max(currentRemaining - count, 0)
+    const updated = await consumeQuota(count)
+    if (updated && typeof updated.remaining === 'number') return updated.remaining
+    return currentRemaining
   }
 
   const formatRemaining = (remaining: number | null) => (
@@ -1144,7 +1144,7 @@ function App() {
                   stopRef: keywordShouldStopRef
                 });
                 const writtenCount = appendedCount + filledCount
-                remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
+                remainingAfterWrite = await applyQuotaConsumption(remainingAfterWrite, writtenCount)
                 totalWritten += writtenCount;
                 setMessage(tr(keywordTargetTable === 'new'
                   ? '已写入新表 {{table}} 共 {{count}} 条'
@@ -1466,7 +1466,7 @@ function App() {
                   stopRef: accountShouldStopRef
                 });
                 const writtenCount = appendedCount + filledCount
-                remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
+                remainingAfterWrite = await applyQuotaConsumption(remainingAfterWrite, writtenCount)
                 totalWritten += writtenCount;
                 setMessage(tr(accountTargetTable === 'new'
                   ? '已写入新表 {{table}} 共 {{count}} 条'
@@ -1653,7 +1653,7 @@ function App() {
           const { appendedCount, filledCount } = await addRecordsInBatches(targetTable, batch, { stopRef: accountInfoStopRef })
           const writtenCount = appendedCount + filledCount
           processed += writtenCount
-          remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
+          remainingAfterWrite = await applyQuotaConsumption(remainingAfterWrite, writtenCount)
           setMessage(tr('已更新 {{count}} 条账号信息', {
             count: processed,
             used: processed,
@@ -1733,7 +1733,7 @@ function App() {
             } else {
               await applyRecordFields(record.recordId, recordData)
               processed++
-              remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, 1)
+              remainingAfterWrite = await applyQuotaConsumption(remainingAfterWrite, 1)
               reportProgress(processed, () => {
                 setMessage(tr('已更新 {{count}} 条账号信息', {
                   count: processed,
@@ -1865,7 +1865,7 @@ function App() {
             stopRef: accountInfoStopRef
           })
           const writtenCount = appendedCount + filledCount
-          remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
+          remainingAfterWrite = await applyQuotaConsumption(remainingAfterWrite, writtenCount)
           if (batchTargetTable === 'new') {
             setMessage(tr('已写入新表格「{{tableName}}」，共 {{count}} 条记录', {
               tableName: targetTableName,
@@ -2118,7 +2118,7 @@ function App() {
               if (fieldMeta.type === FieldType.Text) {
                 await activeTable.setCellValue(audioOutputField, record.recordId, transcript);
                 processedCount++;
-                remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, 1)
+                remainingAfterWrite = await applyQuotaConsumption(remainingAfterWrite, 1)
                 reportProgress(processedCount, () => {
                   setMessage(tr('成功写入数据，已处理 {{count}} 条记录', {
                     count: processedCount,
@@ -2148,7 +2148,7 @@ function App() {
                 await targetTable.addRecord(payload);
               }
               processedCount++;
-              remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, 1)
+              remainingAfterWrite = await applyQuotaConsumption(remainingAfterWrite, 1)
               setMessage(tr('已写入新表 {{table}}，处理 {{count}} 条记录', {
                 table: targetTableName || '',
                 count: processedCount,
@@ -2245,7 +2245,7 @@ function App() {
         const addResult = await addRecordsInBatches(targetTable, recordsToInsert, { emptyRecordIds: emptyIds, stopRef: audioShouldStopRef });
         const insertedRecordIds = addResult.recordIds;
         const writtenCount = addResult.appendedCount + addResult.filledCount
-        remainingAfterWrite = applyQuotaConsumption(remainingAfterWrite, writtenCount)
+        remainingAfterWrite = await applyQuotaConsumption(remainingAfterWrite, writtenCount)
         const remainingText = formatRemaining(remainingAfterWrite)
 
         // 按顺序转写并回填文案（简单串行，避免超时）
