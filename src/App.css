@@ -840,6 +840,13 @@ button:disabled {
   cursor: default;
 }
 
+.redeem-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .redeem-title {
   font-weight: 500;
   color: #333;
@@ -892,7 +899,6 @@ button:disabled {
 }
 
 .redeem-open-btn {
-  margin-top: 8px;
   padding: 6px 12px;
   border: 1px solid #1677ff;
   border-radius: 4px;

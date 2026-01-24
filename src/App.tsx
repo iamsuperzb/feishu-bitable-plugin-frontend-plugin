@@ -2466,7 +2466,22 @@ function App() {
         </div>
 
         <div className="quota-card redeem-card">
-          <div className="redeem-title">{tr('redeem.title')}</div>
+          <div className="redeem-header">
+            <div className="redeem-title">{tr('redeem.title')}</div>
+            {!redeemOpen && (
+              <button
+                type="button"
+                className="redeem-open-btn"
+                disabled={redeemLoading || !userIdentity}
+                onClick={() => {
+                  setRedeemOpen(true)
+                  setRedeemTouched(true)
+                }}
+              >
+                {tr('redeem.open')}
+              </button>
+            )}
+          </div>
           {quotaInfo?.planType ? (
             <div className="redeem-level">
               <span className="redeem-level-label">{tr('status.level.label')}</span>
@@ -2494,19 +2509,7 @@ function App() {
               </div>
               <div className="redeem-tip">{tr('redeem.tip')}</div>
             </>
-          ) : (
-            <button
-              type="button"
-              className="redeem-open-btn"
-              disabled={redeemLoading || !userIdentity}
-              onClick={() => {
-                setRedeemOpen(true)
-                setRedeemTouched(true)
-              }}
-            >
-              {tr('redeem.open')}
-            </button>
-          )}
+          ) : null}
         </div>
 
         {/* ==================== 数据点（置顶固定） ====================  */}
