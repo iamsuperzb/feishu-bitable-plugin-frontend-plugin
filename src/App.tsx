@@ -376,6 +376,8 @@ function App() {
 
   // 用户身份状态
   const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null)
+  const [redeemCode, setRedeemCode] = useState('')
+  const [redeemLoading, setRedeemLoading] = useState(false)
 
   // 关键词搜索相关状态
   const [query, setQuery] = useState('')
@@ -655,7 +657,8 @@ function App() {
     quotaDetailsOpen,
     setQuotaDetailsOpen,
     handle429Error,
-    consumeQuotaPoints
+    consumeQuotaPoints,
+    refreshQuota
   } = useQuota({
     userIdentity,
     fetchWithIdentity,
@@ -671,6 +674,34 @@ function App() {
   const quotaOpenScrollTopRef = useRef(0)
   const quotaScrollTopRef = useRef(0)
   const [quotaCollapseProgress, setQuotaCollapseProgress] = useState(0)
+  const quotaPlanLabel = useMemo(() => {
+    if (quotaInfo?.planType === 'monthly') return tr('plan.monthly')
+    if (quotaInfo?.planType === 'points') return tr('plan.points')
+    return tr('plan.trial')
+  }, [quotaInfo?.planType, tr])
+  const quotaResetLabel = useMemo(() => (
+    quotaInfo?.planType && quotaInfo.planType !== 'trial'
+      ? tr('quota.expire.label')
+      : tr('quota.reset.label')
+  ), [quotaInfo?.planType, tr])
+  const formatQuotaDate = useCallback((value?: string | null) => {
+    if (!value) return tr('quota.time.unknown')
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return tr('quota.time.unknown')
+    const pad = (num: number) => String(num).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }, [tr])
+  const quotaResetValue = useMemo(() => (
+    formatQuotaDate(quotaInfo?.resetAt)
+  ), [formatQuotaDate, quotaInfo?.resetAt])
+  const pointsExpiringSoon = useMemo(() => {
+    if (quotaInfo?.planType !== 'points' || !quotaInfo?.resetAt) return false
+    const expireAt = new Date(quotaInfo.resetAt).getTime()
+    if (Number.isNaN(expireAt)) return false
+    const diff = expireAt - Date.now()
+    const twoDaysMs = 2 * 24 * 60 * 60 * 1000
+    return diff > 0 && diff <= twoDaysMs
+  }, [quotaInfo?.planType, quotaInfo?.resetAt])
 
   useEffect(() => {
     if (!quotaDetailsOpen) {
@@ -2233,6 +2264,7 @@ function App() {
   const keywordQuotaInsufficient = quotaZero
   const accountQuotaInsufficient = quotaZero
   const accountInfoQuotaInsufficient = quotaZero && accountInfoEstimatedRows > 0
+  const audioQuotaInsufficient = quotaZero
 
   // 批量输入仅支持新建表格
   useEffect(() => {
@@ -2318,6 +2350,50 @@ function App() {
     window.open(USER_GROUP_JOIN_LINK, '_blank', 'noopener,noreferrer')
   }, [])
 
+  const handleRedeemCode = useCallback(async () => {
+    const code = redeemCode.trim()
+    if (!code) {
+      setMessage(tr('redeem.empty'))
+      return
+    }
+    if (!userIdentity) {
+      setMessage(tr('获取用户身份失败，请刷新页面重试'))
+      return
+    }
+
+    setRedeemLoading(true)
+    try {
+      const response = await fetchWithIdentity(
+        `${getApiBase()}/api/redeem`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        },
+        { timeout: TIMEOUT_CONFIG.QUOTA }
+      )
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setMessage(data?.message || tr('redeem.failed'))
+        return
+      }
+      const remaining = data?.remaining
+      const quota = data?.quota
+      setRedeemCode('')
+      if (typeof remaining === 'number' && typeof quota === 'number') {
+        setMessage(tr('redeem.success', { remaining, quota }))
+      } else {
+        setMessage(tr('redeem.success.simple'))
+      }
+      refreshQuota()
+    } catch (error) {
+      console.error('[redeem] 使用码兑换失败:', error)
+      setMessage(tr('redeem.failed'))
+    } finally {
+      setRedeemLoading(false)
+    }
+  }, [fetchWithIdentity, redeemCode, refreshQuota, setMessage, tr, userIdentity])
+
   return (
     <Fragment>
       <div
@@ -2343,6 +2419,28 @@ function App() {
               {tr('加入用户群')}
             </button>
           </div>
+        </div>
+
+        <div className="quota-card redeem-card">
+          <div className="redeem-title">{tr('redeem.title')}</div>
+          <div className="redeem-form">
+            <input
+              type="text"
+              className="redeem-input"
+              value={redeemCode}
+              onChange={(event) => setRedeemCode(event.target.value)}
+              placeholder={tr('redeem.placeholder')}
+              disabled={redeemLoading || !userIdentity}
+            />
+            <button
+              type="button"
+              onClick={handleRedeemCode}
+              disabled={redeemLoading || !redeemCode.trim() || !userIdentity}
+            >
+              {redeemLoading ? tr('redeem.loading') : tr('redeem.button')}
+            </button>
+          </div>
+          <div className="redeem-tip">{tr('redeem.tip')}</div>
         </div>
 
         {/* ==================== 数据点（置顶固定） ====================  */}
@@ -2393,6 +2491,20 @@ function App() {
 
               <div ref={quotaDetailsRef} className="quota-card-details" style={quotaDetailStyle}>
                 <div className="quota-detail-item">
+                  <span className="quota-detail-label">{tr('quota.plan.label')}</span>
+                  <span className="quota-detail-value">{quotaPlanLabel}</span>
+                </div>
+                <div className="quota-detail-item">
+                  <span className="quota-detail-label">{quotaResetLabel}</span>
+                  <span className="quota-detail-value">{quotaResetValue}</span>
+                </div>
+                {pointsExpiringSoon && (
+                  <div className="quota-detail-item">
+                    <span className="quota-detail-label">{tr('quota.expire.notice.label')}</span>
+                    <span className="quota-detail-value">{tr('quota.expire.notice')}</span>
+                  </div>
+                )}
+                <div className="quota-detail-item">
                   <span className="quota-detail-label">{tr('quota.keyword.label')}</span>
                   <span className="quota-detail-value">{tr('quota.keyword.desc')}</span>
                 </div>
@@ -2407,10 +2519,6 @@ function App() {
                 <div className="quota-detail-item">
                   <span className="quota-detail-label">{tr('quota.audio.label')}</span>
                   <span className="quota-detail-value">{tr('quota.audio.desc')}</span>
-                </div>
-                <div className="quota-detail-item">
-                  <span className="quota-detail-label">{tr('quota.reset.label')}</span>
-                  <span className="quota-detail-value">{tr('quota.reset.desc')}</span>
                 </div>
               </div>
             </div>
@@ -2517,6 +2625,7 @@ function App() {
           audioNewTableName={audioNewTableName}
           setAudioNewTableName={handleAudioNewTableNameChange}
           audioLoading={audioLoading}
+          audioQuotaInsufficient={audioQuotaInsufficient}
           handleAudioExtract={handleAudioExtract}
           handleAudioStop={stopAudioExtraction}
         />

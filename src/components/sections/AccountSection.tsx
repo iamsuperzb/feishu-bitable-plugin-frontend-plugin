@@ -168,7 +168,7 @@ export default function AccountSection(props: AccountSectionProps) {
             <>
               <button
                 onClick={writeAccountTikTokData}
-                disabled={loading || !username}
+                disabled={loading || !username || accountQuotaInsufficient}
               >
                 {tr('开始采集')}
               </button>

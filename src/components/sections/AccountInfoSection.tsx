@@ -257,7 +257,8 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                 onClick={handleAccountInfoFetch}
                 disabled={
                   (accountInfoMode === 'column' && !accountInfoUsernameField) ||
-                  (accountInfoMode === 'batch' && !accountInfoBatchInput.trim())
+                  (accountInfoMode === 'batch' && !accountInfoBatchInput.trim()) ||
+                  accountInfoQuotaInsufficient
                 }
               >
                 {tr('开始获取')}
@@ -277,15 +278,15 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
           style={{
             marginTop: '12px',
             padding: '8px 12px',
-            background: '#fff7e6',
-            border: '1px solid #ffd591',
+            background: accountInfoQuotaInsufficient ? '#fff2e8' : '#f0f5ff',
+            border: accountInfoQuotaInsufficient ? '1px solid #ffbb96' : '1px solid #adc6ff',
             borderRadius: '4px',
             fontSize: '12px',
-            color: '#fa8c16',
+            color: accountInfoQuotaInsufficient ? '#ff4d4f' : '#1890ff',
           lineHeight: '1.5'
         }}
       >
-          ⚠️ {accountInfoQuotaInsufficient ? tr('quota.accountInfo.insufficient') : tr('quota.accountInfo.tip')}
+          {accountInfoQuotaInsufficient ? '⚠️' : 'ℹ️'} {accountInfoQuotaInsufficient ? tr('quota.accountInfo.insufficient') : tr('quota.accountInfo.tip')}
         </div>
 
         <div className="sub-section">

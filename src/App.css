@@ -836,6 +836,43 @@ button:disabled {
   color: #333;
 }
 
+.redeem-card {
+  cursor: default;
+}
+
+.redeem-title {
+  font-weight: 500;
+  color: #333;
+}
+
+.redeem-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.redeem-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.redeem-input:focus {
+  outline: none;
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+}
+
+.redeem-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #888;
+}
+
 /* 头部：单行布局 */
 .quota-card-header {
   display: flex;
@@ -975,6 +1012,24 @@ button:disabled {
 
 .app.dark .join-group-title {
   color: #f0f0f0;
+}
+
+.app.dark .redeem-title {
+  color: #f0f0f0;
+}
+
+.app.dark .redeem-input {
+  background-color: rgba(31, 35, 41, 0.7);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f0f0f0;
+}
+
+.app.dark .redeem-input::placeholder {
+  color: #888;
+}
+
+.app.dark .redeem-tip {
+  color: #888;
 }
 
 .app.dark .quota-card-title,

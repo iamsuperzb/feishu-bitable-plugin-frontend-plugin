@@ -186,7 +186,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
             <>
               <button
                 onClick={writeKeywordTikTokData}
-                disabled={loading || !query}
+                disabled={loading || !query || keywordQuotaInsufficient}
               >
                 {tr('开始采集')}
               </button>

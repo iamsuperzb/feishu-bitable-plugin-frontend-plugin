@@ -21,6 +21,7 @@ interface AudioSectionProps {
   audioNewTableName: string
   setAudioNewTableName: (val: string) => void
   audioLoading: boolean
+  audioQuotaInsufficient: boolean
   handleAudioExtract: () => void
   handleAudioStop: () => void
 }
@@ -44,6 +45,7 @@ export default function AudioSection(props: AudioSectionProps) {
     audioNewTableName,
     setAudioNewTableName,
     audioLoading,
+    audioQuotaInsufficient,
     handleAudioExtract,
     handleAudioStop
   } = props
@@ -200,7 +202,8 @@ export default function AudioSection(props: AudioSectionProps) {
               onClick={handleAudioExtract}
               disabled={
                 (audioMode === 'column' && (!audioVideoUrlField || (audioTargetTable === 'current' && !audioOutputField))) ||
-                (audioMode === 'batch' && !audioBatchInput.trim())
+                (audioMode === 'batch' && !audioBatchInput.trim()) ||
+                audioQuotaInsufficient
               }
             >
               {tr('开始提取')}
@@ -219,15 +222,15 @@ export default function AudioSection(props: AudioSectionProps) {
           style={{
             marginTop: '12px',
             padding: '8px 12px',
-            background: '#f0f5ff',
-            border: '1px solid #adc6ff',
+            background: audioQuotaInsufficient ? '#fff2e8' : '#f0f5ff',
+            border: audioQuotaInsufficient ? '1px solid #ffbb96' : '1px solid #adc6ff',
             borderRadius: '4px',
             fontSize: '12px',
-            color: '#1890ff',
+            color: audioQuotaInsufficient ? '#ff4d4f' : '#1890ff',
             lineHeight: '1.5'
           }}
         >
-          ℹ️ {tr('quota.audio.tip')}
+          {audioQuotaInsufficient ? '⚠️' : 'ℹ️'} {audioQuotaInsufficient ? tr('quota.audio.insufficient') : tr('quota.audio.tip')}
         </div>
       </div>
     </div>

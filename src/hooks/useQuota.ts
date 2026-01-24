@@ -32,6 +32,14 @@ export interface QuotaInfo {
   quota: number | null
   /** 配额状态 */
   status?: 'available' | 'unavailable' | 'degraded'
+  /** 方案类型 */
+  planType?: 'trial' | 'monthly' | 'points'
+  /** 方案编号 */
+  planCode?: string | null
+  /** 方案名称 */
+  planName?: string | null
+  /** 周期/到期时间 */
+  resetAt?: string | null
 }
 
 /**
@@ -118,7 +126,12 @@ export const useQuota = (options: UseQuotaOptions) => {
       const remainingNum = parseInt(remaining, 10)
       const limitNum = parseInt(limit, 10)
       if (!Number.isNaN(remainingNum) && !Number.isNaN(limitNum)) {
-        setQuotaInfo({ remaining: remainingNum, quota: limitNum, status: 'available' })
+        setQuotaInfo(prev => ({
+          ...(prev ?? {}),
+          remaining: remainingNum,
+          quota: limitNum,
+          status: 'available'
+        }))
         console.log(`📊 配额更新: ${remainingNum}/${limitNum} 次`)
       }
     }
@@ -139,22 +152,27 @@ export const useQuota = (options: UseQuotaOptions) => {
   const handle429Error = useCallback(async (response: Response): Promise<boolean> => {
     if (response.status === 429) {
       const errorData = await response.json().catch(() => ({}))
+      const planType = errorData.planType ?? quotaInfo?.planType
+      const resetAt = errorData.resetAt ?? quotaInfo?.resetAt
 
       // 更新配额显示（配额已耗尽）
       handleQuotaHeaders(response)
       setQuotaInfo({
         remaining: errorData.remaining ?? 0,
         quota: errorData.quota ?? quotaInfo?.quota ?? null,
-        status: 'available'
+        status: 'available',
+        planType,
+        planCode: errorData.planCode ?? quotaInfo?.planCode ?? null,
+        planName: errorData.planName ?? quotaInfo?.planName ?? null,
+        resetAt
       })
 
-      // 统一使用UTC 00:00的重置时间提示
       const fallbackQuota = errorData.quota ?? quotaInfo?.quota
       const fallbackRemaining = errorData.remaining ?? 0
       const messageText = errorData.message ||
         (typeof fallbackQuota === 'number'
-          ? `今日数据点已用完（${fallbackRemaining}/${fallbackQuota}个），将于次日00:00（UTC）自动重置`
-          : '今日数据点已用完，将于次日00:00（UTC）自动重置')
+          ? `点数已用完（${fallbackRemaining}/${fallbackQuota}）`
+          : '点数已用完')
       setMessage(messageText)
       keywordShouldStopRef.current = true
       accountShouldStopRef.current = true
@@ -162,7 +180,18 @@ export const useQuota = (options: UseQuotaOptions) => {
       return true
     }
     return false
-  }, [handleQuotaHeaders, quotaInfo?.quota, setMessage, keywordShouldStopRef, accountShouldStopRef, audioShouldStopRef])
+  }, [
+    handleQuotaHeaders,
+    quotaInfo?.quota,
+    quotaInfo?.planType,
+    quotaInfo?.planCode,
+    quotaInfo?.planName,
+    quotaInfo?.resetAt,
+    setMessage,
+    keywordShouldStopRef,
+    accountShouldStopRef,
+    audioShouldStopRef
+  ])
 
   /**
    * 主动获取配额信息
@@ -217,7 +246,11 @@ export const useQuota = (options: UseQuotaOptions) => {
         setQuotaInfo({
           remaining: data.remaining,
           quota: data.quota,
-          status: 'available'
+          status: 'available',
+          planType: data.planType,
+          planCode: data.planCode ?? null,
+          planName: data.planName ?? null,
+          resetAt: data.resetAt ?? null
         })
         setMessage('') // 清除之前的错误消息
         console.log(`[quota] 配额查询成功: ${data.remaining}/${data.quota}`)
@@ -275,6 +308,7 @@ export const useQuota = (options: UseQuotaOptions) => {
     setQuotaDetailsOpen,
     handleQuotaHeaders,
     handle429Error,
-    consumeQuotaPoints
+    consumeQuotaPoints,
+    refreshQuota: fetchQuotaInfo
   }
 }
