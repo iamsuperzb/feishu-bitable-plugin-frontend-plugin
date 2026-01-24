@@ -318,7 +318,7 @@ export const useQuota = (options: UseQuotaOptions) => {
       handleQuotaHeaders(response)
       const data = await response.json().catch(() => ({}))
       if (typeof data?.remaining === 'number' && typeof data?.quota === 'number') {
-        const nextInfo = {
+        const nextInfo: QuotaInfo = {
           remaining: data.remaining,
           quota: data.quota,
           status: 'available',
