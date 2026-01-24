@@ -378,6 +378,8 @@ function App() {
   const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null)
   const [redeemCode, setRedeemCode] = useState('')
   const [redeemLoading, setRedeemLoading] = useState(false)
+  const [redeemOpen, setRedeemOpen] = useState(true)
+  const [redeemTouched, setRedeemTouched] = useState(false)
 
   // 关键词搜索相关状态
   const [query, setQuery] = useState('')
@@ -708,6 +710,13 @@ function App() {
     const twoDaysMs = 2 * 24 * 60 * 60 * 1000
     return diff > 0 && diff <= twoDaysMs
   }, [quotaInfo?.planType, quotaInfo?.resetAt])
+  const isActivePaidPlan = useMemo(() => {
+    if (!quotaInfo?.planType || quotaInfo.planType === 'trial') return false
+    if (!quotaInfo.resetAt) return false
+    const expireAt = new Date(quotaInfo.resetAt).getTime()
+    if (Number.isNaN(expireAt)) return false
+    return expireAt > Date.now()
+  }, [quotaInfo?.planType, quotaInfo?.resetAt])
   const remainingDays = useMemo(() => {
     if (!quotaInfo?.resetAt) return null
     const expireAt = new Date(quotaInfo.resetAt).getTime()
@@ -730,6 +739,11 @@ function App() {
     }
     return segments.join(' | ')
   }, [quotaInfo?.planType, quotaPlanLabel, remainingDays, tableId, tr])
+
+  useEffect(() => {
+    if (redeemTouched) return
+    setRedeemOpen(!isActivePaidPlan)
+  }, [isActivePaidPlan, redeemTouched])
 
   useEffect(() => {
     if (!quotaDetailsOpen) {
@@ -2408,6 +2422,8 @@ function App() {
       const remaining = data?.remaining
       const quota = data?.quota
       setRedeemCode('')
+      setRedeemOpen(false)
+      setRedeemTouched(true)
       if (typeof remaining === 'number' && typeof quota === 'number') {
         setMessage(tr('redeem.success', { remaining, quota }))
       } else {
@@ -2451,24 +2467,46 @@ function App() {
 
         <div className="quota-card redeem-card">
           <div className="redeem-title">{tr('redeem.title')}</div>
-          <div className="redeem-form">
-            <input
-              type="text"
-              className="redeem-input"
-              value={redeemCode}
-              onChange={(event) => setRedeemCode(event.target.value)}
-              placeholder={tr('redeem.placeholder')}
-              disabled={redeemLoading || !userIdentity}
-            />
+          {quotaInfo?.planType ? (
+            <div className="redeem-level">
+              <span className="redeem-level-label">{tr('status.level.label')}</span>
+              <span className="redeem-level-value">{quotaPlanLabel}</span>
+            </div>
+          ) : null}
+          {redeemOpen ? (
+            <>
+              <div className="redeem-form">
+                <input
+                  type="text"
+                  className="redeem-input"
+                  value={redeemCode}
+                  onChange={(event) => setRedeemCode(event.target.value)}
+                  placeholder={tr('redeem.placeholder')}
+                  disabled={redeemLoading || !userIdentity}
+                />
+                <button
+                  type="button"
+                  onClick={handleRedeemCode}
+                  disabled={redeemLoading || !redeemCode.trim() || !userIdentity}
+                >
+                  {redeemLoading ? tr('redeem.loading') : tr('redeem.button')}
+                </button>
+              </div>
+              <div className="redeem-tip">{tr('redeem.tip')}</div>
+            </>
+          ) : (
             <button
               type="button"
-              onClick={handleRedeemCode}
-              disabled={redeemLoading || !redeemCode.trim() || !userIdentity}
+              className="redeem-open-btn"
+              disabled={redeemLoading || !userIdentity}
+              onClick={() => {
+                setRedeemOpen(true)
+                setRedeemTouched(true)
+              }}
             >
-              {redeemLoading ? tr('redeem.loading') : tr('redeem.button')}
+              {tr('redeem.open')}
             </button>
-          </div>
-          <div className="redeem-tip">{tr('redeem.tip')}</div>
+          )}
         </div>
 
         {/* ==================== 数据点（置顶固定） ====================  */}

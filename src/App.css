@@ -845,6 +845,24 @@ button:disabled {
   color: #333;
 }
 
+.redeem-level {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #666;
+}
+
+.redeem-level-label {
+  color: #888;
+}
+
+.redeem-level-value {
+  font-weight: 500;
+  color: #333;
+}
+
 .redeem-form {
   display: flex;
   align-items: center;
@@ -871,6 +889,23 @@ button:disabled {
   margin-top: 6px;
   font-size: 12px;
   color: #888;
+}
+
+.redeem-open-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 1px solid #1677ff;
+  border-radius: 4px;
+  background: #fff;
+  color: #1677ff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.redeem-open-btn:disabled {
+  border-color: #d9d9d9;
+  color: #aaa;
+  cursor: not-allowed;
 }
 
 /* 头部：单行布局 */
@@ -1018,6 +1053,14 @@ button:disabled {
   color: #f0f0f0;
 }
 
+.app.dark .redeem-level-value {
+  color: #f0f0f0;
+}
+
+.app.dark .redeem-level-label {
+  color: #888;
+}
+
 .app.dark .redeem-input {
   background-color: rgba(31, 35, 41, 0.7);
   border-color: rgba(255, 255, 255, 0.15);
@@ -1030,6 +1073,17 @@ button:disabled {
 
 .app.dark .redeem-tip {
   color: #888;
+}
+
+.app.dark .redeem-open-btn {
+  background: rgba(31, 35, 41, 0.7);
+  border-color: rgba(56, 132, 255, 0.8);
+  color: #8ab4ff;
+}
+
+.app.dark .redeem-open-btn:disabled {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #666;
 }
 
 .app.dark .quota-card-title,
