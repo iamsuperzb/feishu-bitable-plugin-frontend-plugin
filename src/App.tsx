@@ -474,7 +474,7 @@ function App() {
   const [keywordOfflineDetail, setKeywordOfflineDetail] = useState<OfflineTaskDetail | null>(null)
   const [keywordOfflineStopping, setKeywordOfflineStopping] = useState(false)
   const [keywordOfflineActiveTaskId, setKeywordOfflineActiveTaskId] = useState('')
-  const [offlineCenterOpen, setOfflineCenterOpen] = useState(true)
+  const [offlineCenterOpen, setOfflineCenterOpen] = useState(false)
   const keywordOfflineHadRunningRef = useRef(false)
 
   // 账号视频搜索相关状态
