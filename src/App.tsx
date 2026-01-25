@@ -334,6 +334,7 @@ const KEYWORD_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '视频下载链接', type: FieldType.Url },
   { field_name: '是否带货', type: FieldType.Checkbox },
   { field_name: '带货产品链接', type: FieldType.Url },
+  { field_name: '带货产品链接（全部）', type: FieldType.Text },
   { field_name: '带货原因', type: FieldType.Text },
   { field_name: '带货产品数量', type: FieldType.Text },
   { field_name: '带货产品信息', type: FieldType.Text }
@@ -358,6 +359,7 @@ const ACCOUNT_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '帖子类型', type: FieldType.Text },
   { field_name: '是否带货', type: FieldType.Checkbox },
   { field_name: '带货产品链接', type: FieldType.Url },
+  { field_name: '带货产品链接（全部）', type: FieldType.Text },
   { field_name: '带货原因', type: FieldType.Text },
   { field_name: '带货产品数量', type: FieldType.Text },
   { field_name: '带货产品信息', type: FieldType.Text }
@@ -523,6 +525,7 @@ function App() {
     '视频下载链接': true,
     '是否带货': true,
     '带货产品链接': true,
+    '带货产品链接（全部）': true,
     '带货原因': true,
     '带货产品数量': true,
     '带货产品信息': true
@@ -551,6 +554,7 @@ function App() {
     '帖子类型': true,
     '是否带货': true,
     '带货产品链接': true,
+    '带货产品链接（全部）': true,
     '带货原因': true,
     '带货产品数量': true,
     '带货产品信息': true

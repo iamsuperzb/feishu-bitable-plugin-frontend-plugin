@@ -183,6 +183,13 @@ export const KEYWORD_VIDEO_MAPPINGS: FieldMapping<KeywordVideoItem>[] = [
     name: '带货产品链接',
     getValue: (_, ctx) => {
       const products = ctx?.commerce?.products || []
+      return products.map(p => pickProductLink(p)).filter(link => link)[0] || ''
+    }
+  },
+  {
+    name: '带货产品链接（全部）',
+    getValue: (_, ctx) => {
+      const products = ctx?.commerce?.products || []
       return products.map(p => pickProductLink(p)).filter(link => link).join('\n')
     }
   },
@@ -233,6 +240,13 @@ export const ACCOUNT_VIDEO_MAPPINGS: FieldMapping<AccountVideoItem>[] = [
   { name: '是否带货', getValue: (_, ctx) => ctx?.commerce?.isCommerce ?? false },
   {
     name: '带货产品链接',
+    getValue: (_, ctx) => {
+      const products = ctx?.commerce?.products || []
+      return products.map(p => pickProductLink(p)).filter(link => link)[0] || ''
+    }
+  },
+  {
+    name: '带货产品链接（全部）',
     getValue: (_, ctx) => {
       const products = ctx?.commerce?.products || []
       return products.map(p => pickProductLink(p)).filter(link => link).join('\n')
