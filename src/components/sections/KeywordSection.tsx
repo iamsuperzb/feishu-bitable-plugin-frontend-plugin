@@ -1,4 +1,38 @@
 type TableTarget = 'current' | 'new'
+type KeywordRunMode = 'online' | 'offline'
+
+interface OfflineTaskProgress {
+  fetched?: number
+  written?: number
+  failed?: number
+  page?: number
+}
+
+interface OfflineTaskLog {
+  at?: string
+  page?: number
+  fetched?: number
+  written?: number
+  failed?: number
+  note?: string
+}
+
+interface OfflineTaskSummary {
+  id: string
+  status?: 'queued' | 'running' | 'completed' | 'stopped'
+  progress?: OfflineTaskProgress
+  createdAt?: string
+  updatedAt?: string
+  keyword?: string
+}
+
+interface OfflineTaskDetail extends OfflineTaskSummary {
+  payload?: {
+    keyword?: string
+    tableName?: string
+  }
+  stopReason?: string
+}
 
 interface KeywordSectionProps {
   tr: (key: string, options?: Record<string, unknown>) => string
@@ -10,18 +44,34 @@ interface KeywordSectionProps {
   query: string
   vtime: string
   region: string
+  keywordRunMode: KeywordRunMode
+  keywordBaseId: string
   keywordTargetTable: TableTarget
   keywordNewTableName: string
   loading: boolean
   keywordQuotaInsufficient: boolean
   keywordSelectedFields: Record<string, boolean>
   keywordRequiredFields: Set<string>
+  keywordOfflineAuthTokenInput: string
+  keywordOfflineAuthStatus: 'loading' | 'missing' | 'ready'
+  keywordOfflineAuthSaving: boolean
+  keywordOfflineTasks: OfflineTaskSummary[]
+  keywordOfflineActiveTask: OfflineTaskSummary | null
+  keywordOfflineDetail: OfflineTaskDetail | null
+  keywordOfflineLogs: OfflineTaskLog[]
+  keywordOfflineLoading: boolean
+  keywordOfflineRunning: boolean
+  keywordOfflineStopping: boolean
   setQuery: (val: string) => void
   setVtime: (val: string) => void
   setRegion: (val: string) => void
+  setKeywordRunMode: (val: KeywordRunMode) => void
+  setKeywordBaseId: (val: string) => void
   setKeywordTargetTable: (val: TableTarget) => void
   setKeywordNewTableName: (val: string) => void
   handleKeywordFieldChange: (fieldName: string) => void
+  setKeywordOfflineAuthTokenInput: (val: string) => void
+  saveKeywordOfflineAuthToken: () => void
   writeKeywordTikTokData: () => void
   stopCollection: () => void
 }
@@ -58,21 +108,66 @@ export default function KeywordSection(props: KeywordSectionProps) {
     query,
     vtime,
     region,
+    keywordRunMode,
+    keywordBaseId,
     keywordTargetTable,
     keywordNewTableName,
     loading,
     keywordQuotaInsufficient,
     keywordSelectedFields,
     keywordRequiredFields,
+    keywordOfflineAuthTokenInput,
+    keywordOfflineAuthStatus,
+    keywordOfflineAuthSaving,
+    keywordOfflineTasks,
+    keywordOfflineActiveTask,
+    keywordOfflineDetail,
+    keywordOfflineLogs,
+    keywordOfflineLoading,
+    keywordOfflineRunning,
+    keywordOfflineStopping,
     setQuery,
     setVtime,
     setRegion,
+    setKeywordRunMode,
+    setKeywordBaseId,
     setKeywordTargetTable,
     setKeywordNewTableName,
     handleKeywordFieldChange,
+    setKeywordOfflineAuthTokenInput,
+    saveKeywordOfflineAuthToken,
     writeKeywordTikTokData,
     stopCollection
   } = props
+
+  const showOnlineStop = isCollecting && collectType === 1
+  const showOfflineStop = keywordOfflineRunning
+  const showStop = showOnlineStop || showOfflineStop
+  const allowStart = !isCollecting && !keywordOfflineRunning
+  const offlineBlocked = keywordRunMode === 'offline' && (
+    !keywordBaseId.trim() || keywordOfflineAuthStatus !== 'ready'
+  )
+  const stopInProgress = isStopping || keywordOfflineStopping
+
+  const formatTime = (value?: string) => {
+    if (!value) return '-'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    const pad = (num: number) => String(num).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+
+  const formatStatus = (status?: string) => {
+    if (status === 'queued') return tr('排队中')
+    if (status === 'running') return tr('运行中')
+    if (status === 'completed') return tr('已完成')
+    if (status === 'stopped') return tr('已停止')
+    return tr('未知')
+  }
+
+  const formatCount = (value?: number) => (
+    typeof value === 'number' ? value : 0
+  )
 
   return (
     <div className="section">
@@ -80,6 +175,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
         <h2>
           {tr('关键词下爆款视频采集')}
           {isCollecting && collectType === 1 && <span className="running-indicator">{tr('采集中')}</span>}
+          {!isCollecting && keywordOfflineRunning && <span className="running-indicator">{tr('后台运行中')}</span>}
         </h2>
         <span className={`collapse-icon ${open ? '' : 'collapsed'}`}>▼</span>
       </div>
@@ -141,6 +237,34 @@ export default function KeywordSection(props: KeywordSectionProps) {
           </div>
 
           <div className="form-item full-width">
+            <label>{tr('运行方式:')}</label>
+            <div className="radio-group">
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="keywordRunMode"
+                  value="online"
+                  checked={keywordRunMode === 'online'}
+                  onChange={() => setKeywordRunMode('online')}
+                  disabled={isCollecting || keywordOfflineRunning}
+                />
+                {tr('立即执行')}
+              </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="keywordRunMode"
+                  value="offline"
+                  checked={keywordRunMode === 'offline'}
+                  onChange={() => setKeywordRunMode('offline')}
+                  disabled={isCollecting}
+                />
+                {tr('后台执行')}
+              </label>
+            </div>
+          </div>
+
+          <div className="form-item full-width">
             <label>{tr('写入目标:')}</label>
             <div className="radio-group">
               <label className="radio-label">
@@ -181,24 +305,66 @@ export default function KeywordSection(props: KeywordSectionProps) {
           )}
         </div>
 
+        {keywordRunMode === 'offline' && (
+          <div className="sub-section">
+            <h3>{tr('后台任务设置')}</h3>
+            <div className="form-item full-width">
+              <label>{tr('表格编号:')}</label>
+              <input
+                type="text"
+                value={keywordBaseId}
+                onChange={(e) => setKeywordBaseId(e.target.value)}
+                placeholder={tr('请填写表格编号')}
+                disabled={keywordOfflineRunning}
+              />
+            </div>
+            <div className="form-item full-width">
+              <label>{tr('授权码:')}</label>
+              <div className="redeem-form">
+                <input
+                  type="text"
+                  className="redeem-input"
+                  value={keywordOfflineAuthTokenInput}
+                  onChange={(e) => setKeywordOfflineAuthTokenInput(e.target.value)}
+                  placeholder={tr('请填写授权码')}
+                  disabled={keywordOfflineAuthSaving || keywordOfflineRunning}
+                />
+                <button
+                  type="button"
+                  className="redeem-open-btn"
+                  onClick={saveKeywordOfflineAuthToken}
+                  disabled={keywordOfflineAuthSaving || !keywordOfflineAuthTokenInput.trim()}
+                >
+                  {keywordOfflineAuthSaving ? tr('保存中...') : tr('保存')}
+                </button>
+              </div>
+              <div className={`offline-auth-tip ${keywordOfflineAuthStatus}`}>
+                {keywordOfflineAuthStatus === 'ready' && tr('已保存授权，可直接后台执行')}
+                {keywordOfflineAuthStatus === 'missing' && tr('未授权，后台任务无法开始')}
+                {keywordOfflineAuthStatus === 'loading' && tr('正在读取授权状态')}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="search-action">
-          {!isCollecting ? (
+          {allowStart ? (
             <>
               <button
                 onClick={writeKeywordTikTokData}
-                disabled={loading || !query || keywordQuotaInsufficient}
+                disabled={loading || !query || keywordQuotaInsufficient || offlineBlocked}
               >
                 {tr('开始采集')}
               </button>
             </>
           ) : (
-            collectType === 1 && (
+            showStop && (
               <button
                 onClick={stopCollection}
-                className={`stop-button ${isStopping ? 'stopping' : ''}`}
-                disabled={isStopping}
+                className={`stop-button ${stopInProgress ? 'stopping' : ''}`}
+                disabled={stopInProgress}
               >
-                {isStopping ? tr('正在停止...') : tr('停止采集')}
+                {stopInProgress ? tr('正在停止...') : tr('停止采集')}
               </button>
             )
           )}
@@ -239,6 +405,88 @@ export default function KeywordSection(props: KeywordSectionProps) {
             ))}
           </div>
         </div>
+
+        {(keywordRunMode === 'offline' || keywordOfflineTasks.length > 0) && (
+          <div className="sub-section">
+            <h3>{tr('后台任务进度')}</h3>
+            <div className="offline-card">
+              {keywordOfflineLoading && <div className="offline-muted">{tr('正在读取任务列表...')}</div>}
+              {!keywordOfflineLoading && keywordOfflineTasks.length === 0 && (
+                <div className="offline-muted">{tr('暂无后台任务')}</div>
+              )}
+              {!keywordOfflineLoading && keywordOfflineTasks.length > 0 && (
+                <div className="offline-list">
+                  {keywordOfflineTasks.slice(0, 5).map((task, index) => (
+                    <div key={task.id} className="offline-item">
+                      <div className="offline-title">
+                        {tr('任务')} {index + 1}{task.keyword ? `：${task.keyword}` : ''}
+                      </div>
+                      <div className={`offline-status ${task.status || 'unknown'}`}>
+                        {formatStatus(task.status)}
+                      </div>
+                      <div className="offline-meta">
+                        {tr('已获取')} {formatCount(task.progress?.fetched)}，{tr('已写入')} {formatCount(task.progress?.written)}，{tr('失败')} {formatCount(task.progress?.failed)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {(keywordOfflineDetail || keywordOfflineActiveTask) && (
+              <div className="offline-card">
+                <div className="offline-title">{tr('当前任务详情')}</div>
+                <div className="offline-meta">
+                  {tr('状态')}: {formatStatus(keywordOfflineDetail?.status || keywordOfflineActiveTask?.status)}
+                </div>
+                <div className="offline-meta">
+                  {tr('已获取')} {formatCount(keywordOfflineDetail?.progress?.fetched || keywordOfflineActiveTask?.progress?.fetched)}，
+                  {tr('已写入')} {formatCount(keywordOfflineDetail?.progress?.written || keywordOfflineActiveTask?.progress?.written)}，
+                  {tr('失败')} {formatCount(keywordOfflineDetail?.progress?.failed || keywordOfflineActiveTask?.progress?.failed)}
+                </div>
+                <div className="offline-meta">
+                  {tr('更新时间')}: {formatTime(keywordOfflineDetail?.updatedAt || keywordOfflineActiveTask?.updatedAt)}
+                </div>
+                {keywordOfflineDetail?.payload?.tableName && (
+                  <div className="offline-meta">
+                    {tr('写入表格')}: {keywordOfflineDetail.payload.tableName}
+                  </div>
+                )}
+                {keywordOfflineDetail?.stopReason && (
+                  <div className="offline-meta">
+                    {tr('停止原因')}: {keywordOfflineDetail.stopReason}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="offline-card">
+              <div className="offline-title">{tr('发送记录')}</div>
+              {keywordOfflineLogs.length === 0 && (
+                <div className="offline-muted">{tr('暂无发送记录')}</div>
+              )}
+              {keywordOfflineLogs.length > 0 && (
+                <div className="offline-list">
+                  {keywordOfflineLogs.slice(-5).map((log, index) => (
+                    <div key={`${log.at || ''}-${index}`} className="offline-item">
+                      <div className="offline-meta">
+                        {tr('时间')}: {formatTime(log.at)}
+                      </div>
+                      <div className="offline-meta">
+                        {tr('批次')} {formatCount(log.page)}，{tr('已获取')} {formatCount(log.fetched)}，{tr('已写入')} {formatCount(log.written)}，{tr('失败')} {formatCount(log.failed)}
+                      </div>
+                      {log.note && (
+                        <div className="offline-meta">
+                          {tr('备注')}: {log.note}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

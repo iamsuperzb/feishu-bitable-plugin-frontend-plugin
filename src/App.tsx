@@ -45,7 +45,14 @@ import {
   fetchCoverAsJpg,
   fetchCoverOriginal,
   fetchKeywordVideos,
+  fetchOfflineAuthorizationStatus,
+  fetchOfflineTaskDetail,
+  fetchOfflineTaskLogs,
+  fetchOfflineTasks,
   getApiBase,
+  saveOfflineAuthorization,
+  startKeywordOfflineTask as startKeywordOfflineTaskRequest,
+  stopOfflineTask as stopOfflineTaskRequest,
   TIMEOUT_CONFIG
 } from './services/tiktokApi'
 import { commerceFromAweme } from './services/commerceDetection'
@@ -73,6 +80,46 @@ interface VideoCoverSource {
   dynamic_cover?: {
     url_list?: string[]
   }
+}
+
+type OfflineTaskStatus = 'queued' | 'running' | 'completed' | 'stopped'
+
+interface OfflineTaskProgress {
+  fetched?: number
+  written?: number
+  failed?: number
+  page?: number
+}
+
+interface OfflineTaskLog {
+  at?: string
+  page?: number
+  fetched?: number
+  written?: number
+  failed?: number
+  note?: string
+}
+
+interface OfflineTaskSummary {
+  id: string
+  type?: string
+  status?: OfflineTaskStatus
+  progress?: OfflineTaskProgress
+  createdAt?: string
+  updatedAt?: string
+  keyword?: string
+}
+
+interface OfflineTaskDetail extends OfflineTaskSummary {
+  payload?: {
+    keyword?: string
+    tableName?: string
+    tableId?: string
+    targetTable?: 'current' | 'new'
+    vtime?: string
+    region?: string
+  }
+  stopReason?: string
 }
 
 const pickCoverUrl = (video?: VideoCoverSource): string => {
@@ -355,6 +402,42 @@ const ensureRequiredSelections = (
   return normalized
 }
 
+const resolveSelectedFieldList = (
+  selectedFields: Record<string, boolean>,
+  requiredFields: Set<string>
+) => {
+  const normalized = ensureRequiredSelections(selectedFields, requiredFields)
+  return Object.keys(normalized).filter((key) => normalized[key])
+}
+
+const OFFLINE_KEYWORD_BASE_ID_KEY = 'offline_keyword_base_id'
+
+const readLocalValue = (key: string) => {
+  if (typeof window === 'undefined') return ''
+  try {
+    return window.localStorage.getItem(key) || ''
+  } catch {
+    return ''
+  }
+}
+
+const writeLocalValue = (key: string, value: string) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(key, value)
+  } catch {
+    return
+  }
+}
+
+const detectBaseIdFromUrl = () => {
+  if (typeof window === 'undefined') return ''
+  const raw = `${window.location?.href || ''} ${document?.referrer || ''}`
+  const match = raw.match(/base\/([a-zA-Z0-9]+)/)
+  if (match && match[1]) return match[1]
+  return ''
+}
+
 const logEnvConfig = () => {
   const val = import.meta.env.VITE_API_BASE_URL
   if (!val) {
@@ -385,6 +468,18 @@ function App() {
   const [query, setQuery] = useState('')
   const [vtime, setVtime] = useState('7d')
   const [region, setRegion] = useState('US')
+  const [keywordRunMode, setKeywordRunMode] = useState<'online' | 'offline'>('online')
+  const [keywordBaseId, setKeywordBaseId] = useState(readLocalValue(OFFLINE_KEYWORD_BASE_ID_KEY))
+  const [keywordOfflineAuthTokenInput, setKeywordOfflineAuthTokenInput] = useState('')
+  const [keywordOfflineHasAuth, setKeywordOfflineHasAuth] = useState(false)
+  const [keywordOfflineAuthLoaded, setKeywordOfflineAuthLoaded] = useState(false)
+  const [keywordOfflineAuthSaving, setKeywordOfflineAuthSaving] = useState(false)
+  const [keywordOfflineTasks, setKeywordOfflineTasks] = useState<OfflineTaskSummary[]>([])
+  const [keywordOfflineLoading, setKeywordOfflineLoading] = useState(false)
+  const [keywordOfflineDetail, setKeywordOfflineDetail] = useState<OfflineTaskDetail | null>(null)
+  const [keywordOfflineLogs, setKeywordOfflineLogs] = useState<OfflineTaskLog[]>([])
+  const [keywordOfflineStopping, setKeywordOfflineStopping] = useState(false)
+  const [keywordOfflineActiveTaskId, setKeywordOfflineActiveTaskId] = useState('')
 
   // 账号视频搜索相关状态
   const [username, setUsername] = useState('')
@@ -571,6 +666,19 @@ function App() {
     init()
   }, [initTable, setMessage, tr])
 
+  useEffect(() => {
+    if (keywordBaseId) return
+    const detected = detectBaseIdFromUrl()
+    if (detected) {
+      setKeywordBaseId(detected)
+    }
+  }, [keywordBaseId])
+
+  useEffect(() => {
+    if (!keywordBaseId) return
+    writeLocalValue(OFFLINE_KEYWORD_BASE_ID_KEY, keywordBaseId)
+  }, [keywordBaseId])
+
   /**
    * 封装带用户身份的fetch请求（支持超时）
    */
@@ -669,6 +777,153 @@ function App() {
     accountShouldStopRef,
     audioShouldStopRef
   })
+
+  const loadOfflineAuthStatus = useCallback(async () => {
+    if (!userIdentity) return
+    setKeywordOfflineAuthLoaded(false)
+    try {
+      const response = await fetchOfflineAuthorizationStatus(fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.QUOTA
+      })
+      if (!response.ok) {
+        return
+      }
+      const data = await response.json()
+      setKeywordOfflineHasAuth(Boolean(data?.hasToken))
+    } catch (error) {
+      console.error('获取授权状态失败:', error)
+    } finally {
+      setKeywordOfflineAuthLoaded(true)
+    }
+  }, [fetchWithIdentity, userIdentity])
+
+  const handleSaveOfflineAuthToken = useCallback(async () => {
+    const token = keywordOfflineAuthTokenInput.trim()
+    if (!token) {
+      setMessage(tr('请先填写授权码'))
+      return
+    }
+    if (!userIdentity) return
+    setKeywordOfflineAuthSaving(true)
+    try {
+      const response = await saveOfflineAuthorization(token, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.QUOTA
+      })
+      if (!response.ok) {
+        setMessage(tr('授权保存失败，请稍后重试'))
+        return
+      }
+      setKeywordOfflineAuthTokenInput('')
+      setKeywordOfflineHasAuth(true)
+      setMessage(tr('授权已保存'))
+    } catch (error) {
+      console.error('保存授权失败:', error)
+      setMessage(tr('授权保存失败，请稍后重试'))
+    } finally {
+      setKeywordOfflineAuthSaving(false)
+    }
+  }, [fetchWithIdentity, keywordOfflineAuthTokenInput, setMessage, tr, userIdentity])
+
+  const loadKeywordOfflineTasks = useCallback(async (withLoading = false) => {
+    if (!userIdentity) return
+    if (withLoading) setKeywordOfflineLoading(true)
+    try {
+      const response = await fetchOfflineTasks(fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.QUOTA
+      })
+      if (!response.ok) {
+        return
+      }
+      const data = await response.json()
+      const tasks = Array.isArray(data?.tasks) ? data.tasks : []
+      setKeywordOfflineTasks(tasks)
+    } catch (error) {
+      console.error('读取后台任务失败:', error)
+    } finally {
+      if (withLoading) setKeywordOfflineLoading(false)
+    }
+  }, [fetchWithIdentity, userIdentity])
+
+  const loadKeywordOfflineTaskDetail = useCallback(async (taskId: string) => {
+    if (!userIdentity || !taskId) return
+    try {
+      const response = await fetchOfflineTaskDetail(taskId, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.QUOTA
+      })
+      if (!response.ok) {
+        return
+      }
+      const data = await response.json()
+      setKeywordOfflineDetail(data?.task || null)
+    } catch (error) {
+      console.error('读取任务详情失败:', error)
+    }
+  }, [fetchWithIdentity, userIdentity])
+
+  const loadKeywordOfflineTaskLogs = useCallback(async (taskId: string) => {
+    if (!userIdentity || !taskId) return
+    try {
+      const response = await fetchOfflineTaskLogs(taskId, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.QUOTA
+      })
+      if (!response.ok) {
+        return
+      }
+      const data = await response.json()
+      const logs = Array.isArray(data?.logs) ? data.logs : []
+      setKeywordOfflineLogs(logs)
+    } catch (error) {
+      console.error('读取任务记录失败:', error)
+    }
+  }, [fetchWithIdentity, userIdentity])
+
+  useEffect(() => {
+    if (!userIdentity) return
+    loadOfflineAuthStatus()
+    loadKeywordOfflineTasks(true)
+  }, [loadKeywordOfflineTasks, loadOfflineAuthStatus, userIdentity])
+
+  useEffect(() => {
+    if (!keywordOfflineTasks.length) {
+      setKeywordOfflineActiveTaskId('')
+      return
+    }
+    const running = keywordOfflineTasks.find(item => item.status === 'running' || item.status === 'queued')
+    const nextId = running?.id || keywordOfflineTasks[0]?.id || ''
+    setKeywordOfflineActiveTaskId(prev => {
+      if (prev && keywordOfflineTasks.some(task => task.id === prev)) return prev
+      return nextId
+    })
+  }, [keywordOfflineTasks])
+
+  useEffect(() => {
+    if (!keywordOfflineActiveTaskId) {
+      setKeywordOfflineDetail(null)
+      setKeywordOfflineLogs([])
+      return
+    }
+    loadKeywordOfflineTaskDetail(keywordOfflineActiveTaskId)
+    loadKeywordOfflineTaskLogs(keywordOfflineActiveTaskId)
+  }, [keywordOfflineActiveTaskId, loadKeywordOfflineTaskDetail, loadKeywordOfflineTaskLogs])
+
+  useEffect(() => {
+    if (!userIdentity) return
+    if (activeSection !== 'keyword') return
+    const timer = window.setInterval(() => {
+      loadKeywordOfflineTasks()
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [activeSection, loadKeywordOfflineTasks, userIdentity])
+
+  useEffect(() => {
+    if (!keywordOfflineActiveTaskId) return
+    if (activeSection !== 'keyword') return
+    const timer = window.setInterval(() => {
+      loadKeywordOfflineTaskDetail(keywordOfflineActiveTaskId)
+      loadKeywordOfflineTaskLogs(keywordOfflineActiveTaskId)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [activeSection, keywordOfflineActiveTaskId, loadKeywordOfflineTaskDetail, loadKeywordOfflineTaskLogs])
 
   const quotaDetailsRef = useRef<HTMLDivElement>(null)
   const quotaDetailsHeightRef = useRef(0)
@@ -881,14 +1136,42 @@ function App() {
   }, [accountInfoMode, accountInfoBatchInput, accountInfoUsernameField])
 
   // 模块级停止函数
-  const stopKeywordCollection = () => {
-    keywordShouldStopRef.current = true;
-    if (keywordAbortControllerRef.current) {
-      keywordAbortControllerRef.current.abort();
+  const stopKeywordCollection = async () => {
+    const runningOffline = keywordOfflineTasks.find(
+      task => task.status === 'running' || task.status === 'queued'
+    )
+    if (runningOffline) {
+      if (keywordOfflineStopping) return
+      setKeywordOfflineStopping(true)
+      setMessage(tr('正在停止后台任务...'))
+      try {
+        const response = await stopOfflineTaskRequest(runningOffline.id, fetchWithIdentity, {
+          timeout: TIMEOUT_CONFIG.QUOTA
+        })
+        if (!response.ok) {
+          setMessage(tr('停止失败，请稍后重试'))
+          return
+        }
+        setMessage(tr('后台任务已停止'))
+        await loadKeywordOfflineTasks(true)
+        await loadKeywordOfflineTaskDetail(runningOffline.id)
+        await loadKeywordOfflineTaskLogs(runningOffline.id)
+      } catch (error) {
+        console.error('停止后台任务失败:', error)
+        setMessage(tr('停止失败，请稍后重试'))
+      } finally {
+        setKeywordOfflineStopping(false)
+      }
+      return
     }
-    setIsStopping(true);
-    setMessage(tr('正在停止关键词采集...'));
-  };
+
+    keywordShouldStopRef.current = true
+    if (keywordAbortControllerRef.current) {
+      keywordAbortControllerRef.current.abort()
+    }
+    setIsStopping(true)
+    setMessage(tr('正在停止关键词采集...'))
+  }
 
   const stopAccountCollection = () => {
     accountShouldStopRef.current = true;
@@ -940,8 +1223,93 @@ function App() {
     typeof remaining === 'number' ? remaining : '-'
   )
 
+  const startKeywordOfflineTask = async () => {
+    const trimmedKeyword = query.trim()
+    if (!trimmedKeyword) {
+      setMessage(tr('请输入关键词'))
+      return
+    }
+    if (quotaUnavailable) {
+      setMessage(tr('配额未配置，请联系管理员后再试'))
+      return
+    }
+    const baseId = keywordBaseId.trim()
+    if (!baseId) {
+      setMessage(tr('请填写表格编号'))
+      return
+    }
+    if (!keywordOfflineHasAuth) {
+      setMessage(tr('请先完成授权'))
+      return
+    }
+
+    let targetTableId = ''
+    let targetTableName = ''
+    if (keywordTargetTable === 'current') {
+      if (!tableId) {
+        setMessage(tr('无法获取当前表格'))
+        return
+      }
+      targetTableId = tableId
+      try {
+        const meta = await bitable.base.getTableMetaById(tableId)
+        targetTableName = meta?.name || ''
+      } catch (error) {
+        console.error('获取表格名称失败:', error)
+      }
+    } else {
+      let nextTableName = keywordNewTableName
+      if (keywordTableNameAuto) {
+        nextTableName = trimmedKeyword
+          ? getDefaultKeywordTableName(trimmedKeyword)
+          : getDefaultKeywordTableName()
+        setKeywordNewTableName(nextTableName)
+      }
+      const safeName = sanitizeTableName(nextTableName)
+      if (safeName !== nextTableName) setKeywordNewTableName(safeName)
+      targetTableName = safeName
+    }
+
+    const selectedFields = resolveSelectedFieldList(keywordSelectedFields, KEYWORD_REQUIRED_FIELDS)
+
+    try {
+      setMessage(tr('任务已进入后台，请稍后查看进度'))
+      const response = await startKeywordOfflineTaskRequest({
+        keyword: trimmedKeyword,
+        region: region || 'US',
+        vtime,
+        baseId,
+        targetTable: keywordTargetTable,
+        tableId: targetTableId,
+        tableName: targetTableName,
+        selectedFields
+      }, fetchWithIdentity, { timeout: TIMEOUT_CONFIG.SEARCH })
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '')
+        if (response.status === 429) {
+          setMessage(tr('任务数量已达上限，请稍后再试'))
+          return
+        }
+        console.error('后台任务启动失败:', text)
+        setMessage(tr('后台任务启动失败，请稍后重试'))
+        return
+      }
+
+      await loadKeywordOfflineTasks(true)
+      setMessage(tr('后台任务已开始执行'))
+    } catch (error) {
+      console.error('后台任务启动失败:', error)
+      setMessage(tr('后台任务启动失败，请稍后重试'))
+    }
+  }
+
   // 写入关键词搜索 TikTok 数据
   const writeKeywordTikTokData = async () => {
+    if (keywordRunMode === 'offline') {
+      await startKeywordOfflineTask()
+      return
+    }
     if (!query) return
     if (quotaUnavailable) {
       setMessage(tr('配额未配置，请联系管理员后再试'))
@@ -2323,6 +2691,18 @@ function App() {
   const accountOpen = activeSection === 'account'
   const accountInfoOpen = activeSection === 'accountInfo'
   const audioOpen = activeSection === 'audio'
+  const keywordOfflineRunningTask = useMemo(
+    () => keywordOfflineTasks.find(task => task.status === 'running' || task.status === 'queued') || null,
+    [keywordOfflineTasks]
+  )
+  const keywordOfflineRunning = Boolean(keywordOfflineRunningTask)
+  const keywordOfflineActiveTask = useMemo(
+    () => keywordOfflineTasks.find(task => task.id === keywordOfflineActiveTaskId) || null,
+    [keywordOfflineActiveTaskId, keywordOfflineTasks]
+  )
+  const keywordOfflineAuthStatus = keywordOfflineAuthLoaded
+    ? (keywordOfflineHasAuth ? 'ready' : 'missing')
+    : 'loading'
   // 配额提示：剩余为0时提醒，但不阻断写入
   const quotaUnavailable = quotaInfo?.status === 'unavailable'
   const quotaAvailable = quotaInfo?.status === 'available' && typeof quotaInfo?.remaining === 'number'
@@ -2630,18 +3010,34 @@ function App() {
           query={query}
           vtime={vtime}
           region={region}
+          keywordRunMode={keywordRunMode}
+          keywordBaseId={keywordBaseId}
           keywordTargetTable={keywordTargetTable}
           keywordNewTableName={keywordNewTableName}
           loading={loading}
           keywordQuotaInsufficient={keywordQuotaInsufficient}
           keywordSelectedFields={keywordSelectedFields}
           keywordRequiredFields={KEYWORD_REQUIRED_FIELDS}
+          keywordOfflineAuthTokenInput={keywordOfflineAuthTokenInput}
+          keywordOfflineAuthStatus={keywordOfflineAuthStatus}
+          keywordOfflineAuthSaving={keywordOfflineAuthSaving}
+          keywordOfflineTasks={keywordOfflineTasks}
+          keywordOfflineActiveTask={keywordOfflineActiveTask}
+          keywordOfflineDetail={keywordOfflineDetail}
+          keywordOfflineLogs={keywordOfflineLogs}
+          keywordOfflineLoading={keywordOfflineLoading}
+          keywordOfflineRunning={keywordOfflineRunning}
+          keywordOfflineStopping={keywordOfflineStopping}
           setQuery={setQuery}
           setVtime={setVtime}
           setRegion={setRegion}
+          setKeywordRunMode={setKeywordRunMode}
+          setKeywordBaseId={setKeywordBaseId}
           setKeywordTargetTable={setKeywordTargetTable}
           setKeywordNewTableName={handleKeywordNewTableNameChange}
           handleKeywordFieldChange={handleKeywordFieldChange}
+          setKeywordOfflineAuthTokenInput={setKeywordOfflineAuthTokenInput}
+          saveKeywordOfflineAuthToken={handleSaveOfflineAuthToken}
           writeKeywordTikTokData={writeKeywordTikTokData}
           stopCollection={stopKeywordCollection}
         />

@@ -339,3 +339,177 @@ export const fetchCoverOriginal = async (
     { timeout: options.timeout ?? TIMEOUT_CONFIG.SEARCH }
   )
 }
+
+/**
+ * 后台任务授权状态
+ *
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON）
+ */
+export const fetchOfflineAuthorizationStatus = async (
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/authorization/status`
+
+  return fetchFn(
+    apiUrl,
+    { method: 'GET', signal: options.signal },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 保存后台任务授权码
+ *
+ * @param token - 授权码
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON）
+ */
+export const saveOfflineAuthorization = async (
+  token: string,
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/authorization/save`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 发起关键词后台任务
+ *
+ * @param payload - 任务参数
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON）
+ */
+export const startKeywordOfflineTask = async (
+  payload: {
+    keyword: string
+    region: string
+    vtime?: string
+    baseId: string
+    targetTable: 'current' | 'new'
+    tableId?: string
+    tableName?: string
+    selectedFields?: string[]
+  },
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/keyword/start`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.SEARCH }
+  )
+}
+
+/**
+ * 后台任务列表
+ *
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON）
+ */
+export const fetchOfflineTasks = async (
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/tasks/list`
+
+  return fetchFn(
+    apiUrl,
+    { method: 'GET', signal: options.signal },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 后台任务详情
+ *
+ * @param taskId - 任务 ID
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON）
+ */
+export const fetchOfflineTaskDetail = async (
+  taskId: string,
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/tasks/detail?taskId=${encodeURIComponent(taskId)}`
+
+  return fetchFn(
+    apiUrl,
+    { method: 'GET', signal: options.signal },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 后台任务发送记录
+ *
+ * @param taskId - 任务 ID
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON）
+ */
+export const fetchOfflineTaskLogs = async (
+  taskId: string,
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/tasks/logs?taskId=${encodeURIComponent(taskId)}`
+
+  return fetchFn(
+    apiUrl,
+    { method: 'GET', signal: options.signal },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 停止后台任务
+ *
+ * @param taskId - 任务 ID
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON）
+ */
+export const stopOfflineTask = async (
+  taskId: string,
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/tasks/stop`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId }),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
