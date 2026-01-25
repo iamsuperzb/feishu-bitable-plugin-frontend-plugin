@@ -37,6 +37,9 @@ interface AccountSectionProps {
   userRegion: string
   accountRunMode: AccountRunMode
   accountBaseId: string
+  accountTargetTableId: string
+  currentTableId: string
+  tableOptions: { id: string; name: string }[]
   accountOfflineAuthStatus: 'ready' | 'missing' | 'loading'
   accountOfflineTasks: OfflineTaskSummary[]
   accountOfflineActiveTask: OfflineTaskSummary | null
@@ -53,6 +56,7 @@ interface AccountSectionProps {
   setUserRegion: (val: string) => void
   setAccountRunMode: (val: AccountRunMode) => void
   setAccountTargetTable: (val: TableTarget) => void
+  setAccountTargetTableId: (val: string) => void
   setAccountNewTableName: (val: string) => void
   handleAccountFieldChange: (fieldName: string) => void
   writeAccountTikTokData: () => void
@@ -94,6 +98,9 @@ export default function AccountSection(props: AccountSectionProps) {
     userRegion,
     accountRunMode,
     accountBaseId,
+    accountTargetTableId,
+    currentTableId,
+    tableOptions,
     accountOfflineAuthStatus,
     accountOfflineTasks,
     accountOfflineActiveTask,
@@ -110,6 +117,7 @@ export default function AccountSection(props: AccountSectionProps) {
     setUserRegion,
     setAccountRunMode,
     setAccountTargetTable,
+    setAccountTargetTableId,
     setAccountNewTableName,
     handleAccountFieldChange,
     writeAccountTikTokData,
@@ -144,6 +152,11 @@ export default function AccountSection(props: AccountSectionProps) {
   const formatCount = (value?: number) => (
     typeof value === 'number' ? value : 0
   )
+
+  const resolvedTableOptions = tableOptions.length
+    ? tableOptions
+    : (currentTableId ? [{ id: currentTableId, name: tr('当前表格') }] : [])
+  const selectedTargetTableId = accountTargetTableId || currentTableId
 
   return (
     <div className="section">
@@ -248,8 +261,22 @@ export default function AccountSection(props: AccountSectionProps) {
                   onChange={() => setAccountTargetTable('current')}
                   disabled={isCollecting}
                 />
-                {tr('写入当前表格')}
+                {tr('写入表格')}
               </label>
+              {accountTargetTable === 'current' && (
+                <select
+                  value={selectedTargetTableId}
+                  onChange={(e) => setAccountTargetTableId(e.target.value)}
+                  disabled={isCollecting}
+                  className="select-styled"
+                >
+                  {resolvedTableOptions.map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.name || tr('未命名表格')}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 

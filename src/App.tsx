@@ -5,7 +5,8 @@ import {
   FieldType,
   IGetRecordsParams,
   IOpenCellValue,
-  ITable
+  ITable,
+  ITableMeta
 } from '@lark-base-open/js-sdk'
 import './App.css'
 import KeywordSection from './components/sections/KeywordSection'
@@ -521,6 +522,7 @@ function App() {
   const { fields, tableId, initTable, refreshFields } = useBitable({
     setLoading
   })
+  const [tableMetaList, setTableMetaList] = useState<ITableMeta[]>([])
 
   // 关键词采集字段选择
   const [keywordSelectedFields, setKeywordSelectedFields] = useState<{[key: string]: boolean}>({
@@ -547,6 +549,7 @@ function App() {
 
   // 关键词写入目标
   const [keywordTargetTable, setKeywordTargetTable] = useState<'current' | 'new'>('new')
+  const [keywordTargetTableId, setKeywordTargetTableId] = useState('')
   const [keywordNewTableName, setKeywordNewTableName] = useState(getDefaultKeywordTableName())
   const [keywordTableNameAuto, setKeywordTableNameAuto] = useState(true)
   
@@ -576,6 +579,7 @@ function App() {
 
   // 账号写入目标
   const [accountTargetTable, setAccountTargetTable] = useState<'current' | 'new'>('new')
+  const [accountTargetTableId, setAccountTargetTableId] = useState('')
   const [accountNewTableName, setAccountNewTableName] = useState(getDefaultAccountTableName())
   const [accountTableNameAuto, setAccountTableNameAuto] = useState(true)
 
@@ -586,9 +590,11 @@ function App() {
   const [accountInfoLoading, setAccountInfoLoading] = useState(false)
   const [accountInfoOverwrite, setAccountInfoOverwrite] = useState(false)
   const [accountInfoColumnTargetTable, setAccountInfoColumnTargetTable] = useState<'current' | 'new'>('new')
+  const [accountInfoColumnTargetTableId, setAccountInfoColumnTargetTableId] = useState('')
   const [accountInfoColumnNewTableName, setAccountInfoColumnNewTableName] = useState(getDefaultAccountInfoTableName())
   const [accountInfoColumnTableNameAuto, setAccountInfoColumnTableNameAuto] = useState(true)
   const [batchTargetTable, setBatchTargetTable] = useState<'current' | 'new'>('new')
+  const [accountInfoBatchTargetTableId, setAccountInfoBatchTargetTableId] = useState('')
   const [newTableName, setNewTableName] = useState(getDefaultAccountInfoTableName())
   const [accountInfoBatchTableNameAuto, setAccountInfoBatchTableNameAuto] = useState(true)
   const [accountInfoSelectedFields, setAccountInfoSelectedFields] = useState<{[key: string]: boolean}>({
@@ -618,6 +624,7 @@ function App() {
   const [audioBatchInput, setAudioBatchInput] = useState('')
   const [audioLoading, setAudioLoading] = useState(false)
   const [audioTargetTable, setAudioTargetTable] = useState<'current' | 'new'>('new')
+  const [audioTargetTableId, setAudioTargetTableId] = useState('')
   const [audioNewTableName, setAudioNewTableName] = useState(getDefaultAudioTableName())
   const [audioTableNameAuto, setAudioTableNameAuto] = useState(true)
 
@@ -684,6 +691,39 @@ function App() {
     init()
   }, [initTable, setMessage, tr])
 
+  const loadTableMetaList = useCallback(async () => {
+    try {
+      const list = await bitable.base.getTableMetaList()
+      if (Array.isArray(list)) {
+        setTableMetaList(list)
+      }
+    } catch (error) {
+      console.error('获取表格列表失败:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadTableMetaList()
+  }, [loadTableMetaList])
+
+  useEffect(() => {
+    if (!tableId) return
+    loadTableMetaList()
+  }, [loadTableMetaList, tableId])
+
+  useEffect(() => {
+    if (!tableId) return
+    const hasTable = (id: string) => tableMetaList.some(meta => meta.id === id)
+    const normalizeSelection = (setter: (value: string | ((prev: string) => string)) => void) => {
+      setter((prev) => (prev && hasTable(prev) ? prev : tableId))
+    }
+    normalizeSelection(setKeywordTargetTableId)
+    normalizeSelection(setAccountTargetTableId)
+    normalizeSelection(setAccountInfoColumnTargetTableId)
+    normalizeSelection(setAccountInfoBatchTargetTableId)
+    normalizeSelection(setAudioTargetTableId)
+  }, [tableId, tableMetaList])
+
   useEffect(() => {
     if (keywordBaseId) return
     const detected = detectBaseIdFromUrl()
@@ -704,6 +744,24 @@ function App() {
     () => createFetchWithIdentity(userIdentity),
     [userIdentity]
   )
+
+  const tableOptions = useMemo(
+    () => tableMetaList.map(meta => ({ id: meta.id, name: meta.name })),
+    [tableMetaList]
+  )
+
+  const resolveTableNameById = useCallback(async (id: string) => {
+    if (!id) return ''
+    const cached = tableMetaList.find(meta => meta.id === id)?.name
+    if (cached) return cached
+    try {
+      const meta = await bitable.base.getTableMetaById(id)
+      return meta?.name || ''
+    } catch (error) {
+      console.error('获取表格名称失败:', error)
+      return ''
+    }
+  }, [tableMetaList])
 
   const fetchCoverFile = useCallback(
     async (
@@ -1513,17 +1571,13 @@ function App() {
     let targetTableId = ''
     let targetTableName = ''
     if (keywordTargetTable === 'current') {
-      if (!tableId) {
-        setMessage(tr('无法获取当前表格'))
+      const selectedTableId = keywordTargetTableId || tableId
+      if (!selectedTableId) {
+        setMessage(tr('无法获取写入表格'))
         return
       }
-      targetTableId = tableId
-      try {
-        const meta = await bitable.base.getTableMetaById(tableId)
-        targetTableName = meta?.name || ''
-      } catch (error) {
-        console.error('获取表格名称失败:', error)
-      }
+      targetTableId = selectedTableId
+      targetTableName = await resolveTableNameById(selectedTableId)
     } else {
       let nextTableName = keywordNewTableName
       if (keywordTableNameAuto) {
@@ -1594,17 +1648,13 @@ function App() {
     let targetTableId = ''
     let targetTableName = ''
     if (accountTargetTable === 'current') {
-      if (!tableId) {
-        setMessage(tr('无法获取当前表格'))
+      const selectedTableId = accountTargetTableId || tableId
+      if (!selectedTableId) {
+        setMessage(tr('无法获取写入表格'))
         return
       }
-      targetTableId = tableId
-      try {
-        const meta = await bitable.base.getTableMetaById(tableId)
-        targetTableName = meta?.name || ''
-      } catch (error) {
-        console.error('获取表格名称失败:', error)
-      }
+      targetTableId = selectedTableId
+      targetTableName = await resolveTableNameById(selectedTableId)
     } else {
       let nextTableName = accountNewTableName
       if (accountTableNameAuto) {
@@ -1668,16 +1718,9 @@ function App() {
 
     const selectedFields = resolveSelectedFieldList(accountInfoSelectedFields, ACCOUNT_INFO_REQUIRED_FIELDS)
 
-    const resolveTableName = async () => {
-      if (!tableId) return ''
-      try {
-        const meta = await bitable.base.getTableMetaById(tableId)
-        return meta?.name || ''
-      } catch (error) {
-        console.error('获取表格名称失败:', error)
-        return ''
-      }
-    }
+    const resolveTableName = async (targetId: string) => (
+      await resolveTableNameById(targetId)
+    )
 
     let payload: Parameters<typeof startAccountInfoOfflineTaskRequest>[0] | null = null
 
@@ -1692,22 +1735,38 @@ function App() {
       }
       let targetTableName = ''
       if (accountInfoColumnTargetTable === 'current') {
-        targetTableName = await resolveTableName()
+        const selectedTableId = accountInfoColumnTargetTableId || tableId
+        if (!selectedTableId) {
+          setMessage(tr('无法获取写入表格'))
+          return
+        }
+        targetTableName = await resolveTableName(selectedTableId)
+        payload = {
+          baseId,
+          mode: 'column',
+          targetTable: accountInfoColumnTargetTable,
+          tableId: selectedTableId,
+          tableName: targetTableName,
+          sourceTableId: tableId,
+          usernameFieldId: accountInfoUsernameField,
+          overwrite: accountInfoOverwrite,
+          selectedFields
+        }
       } else {
         const safeName = sanitizeTableName(accountInfoColumnNewTableName || getDefaultAccountInfoTableName())
         if (safeName !== accountInfoColumnNewTableName) setAccountInfoColumnNewTableName(safeName)
         targetTableName = safeName
-      }
-      payload = {
-        baseId,
-        mode: 'column',
-        targetTable: accountInfoColumnTargetTable,
-        tableId: accountInfoColumnTargetTable === 'current' ? tableId : '',
-        tableName: targetTableName,
-        sourceTableId: tableId,
-        usernameFieldId: accountInfoUsernameField,
-        overwrite: accountInfoOverwrite,
-        selectedFields
+        payload = {
+          baseId,
+          mode: 'column',
+          targetTable: accountInfoColumnTargetTable,
+          tableId: '',
+          tableName: targetTableName,
+          sourceTableId: tableId,
+          usernameFieldId: accountInfoUsernameField,
+          overwrite: accountInfoOverwrite,
+          selectedFields
+        }
       }
     } else {
       const names = Array.from(
@@ -1728,20 +1787,34 @@ function App() {
       }
       let targetTableName = ''
       if (batchTargetTable === 'current') {
-        targetTableName = await resolveTableName()
+        const selectedTableId = accountInfoBatchTargetTableId || tableId
+        if (!selectedTableId) {
+          setMessage(tr('无法获取写入表格'))
+          return
+        }
+        targetTableName = await resolveTableName(selectedTableId)
+        payload = {
+          baseId,
+          mode: 'batch',
+          targetTable: batchTargetTable,
+          tableId: selectedTableId,
+          tableName: targetTableName,
+          batchUsernames: names,
+          selectedFields
+        }
       } else {
         const safeName = sanitizeTableName(newTableName || getDefaultAccountInfoTableName())
         if (safeName !== newTableName) setNewTableName(safeName)
         targetTableName = safeName
-      }
-      payload = {
-        baseId,
-        mode: 'batch',
-        targetTable: batchTargetTable,
-        tableId: batchTargetTable === 'current' ? tableId : '',
-        tableName: targetTableName,
-        batchUsernames: names,
-        selectedFields
+        payload = {
+          baseId,
+          mode: 'batch',
+          targetTable: batchTargetTable,
+          tableId: '',
+          tableName: targetTableName,
+          batchUsernames: names,
+          selectedFields
+        }
       }
     }
 
@@ -1785,16 +1858,9 @@ function App() {
       return
     }
 
-    const resolveTableName = async () => {
-      if (!tableId) return ''
-      try {
-        const meta = await bitable.base.getTableMetaById(tableId)
-        return meta?.name || ''
-      } catch (error) {
-        console.error('获取表格名称失败:', error)
-        return ''
-      }
-    }
+    const resolveTableName = async (targetId: string) => (
+      await resolveTableNameById(targetId)
+    )
 
     let payload: Parameters<typeof startAudioOfflineTaskRequest>[0] | null = null
 
@@ -1807,27 +1873,43 @@ function App() {
         setMessage(tr('无法获取当前表格'))
         return
       }
-      if (audioTargetTable === 'current' && !audioOutputField) {
-        setMessage(tr('请选择写入列'))
-        return
-      }
       let targetTableName = ''
       if (audioTargetTable === 'current') {
-        targetTableName = await resolveTableName()
+        const selectedTableId = audioTargetTableId || tableId
+        if (!selectedTableId) {
+          setMessage(tr('无法获取写入表格'))
+          return
+        }
+        const shouldUpdateSource = selectedTableId === tableId
+        if (shouldUpdateSource && !audioOutputField) {
+          setMessage(tr('请选择写入列'))
+          return
+        }
+        targetTableName = await resolveTableName(selectedTableId)
+        payload = {
+          baseId,
+          mode: 'column',
+          targetTable: audioTargetTable,
+          tableId: selectedTableId,
+          tableName: targetTableName,
+          sourceTableId: tableId,
+          videoFieldId: audioVideoUrlField,
+          outputFieldId: shouldUpdateSource ? audioOutputField : ''
+        }
       } else {
         const safeName = sanitizeTableName(audioNewTableName || getDefaultAudioTableName())
         if (safeName !== audioNewTableName) setAudioNewTableName(safeName)
         targetTableName = safeName
-      }
-      payload = {
-        baseId,
-        mode: 'column',
-        targetTable: audioTargetTable,
-        tableId: audioTargetTable === 'current' ? tableId : '',
-        tableName: targetTableName,
-        sourceTableId: tableId,
-        videoFieldId: audioVideoUrlField,
-        outputFieldId: audioTargetTable === 'current' ? audioOutputField : ''
+        payload = {
+          baseId,
+          mode: 'column',
+          targetTable: audioTargetTable,
+          tableId: '',
+          tableName: targetTableName,
+          sourceTableId: tableId,
+          videoFieldId: audioVideoUrlField,
+          outputFieldId: ''
+        }
       }
     } else {
       const urls = Array.from(
@@ -1904,7 +1986,22 @@ function App() {
 
       let targetTable = activeTable
       let targetTableName = ''
-      if (keywordTargetTable === 'new') {
+      if (keywordTargetTable === 'current') {
+        const selectedTableId = keywordTargetTableId || activeTable.id
+        if (!selectedTableId) {
+          setMessage(tr('无法获取写入表格'))
+          return
+        }
+        if (selectedTableId !== activeTable.id) {
+          const selectedTable = await bitable.base.getTableById(selectedTableId)
+          if (!selectedTable) {
+            setMessage(tr('无法获取写入表格'))
+            return
+          }
+          targetTable = selectedTable
+        }
+        targetTableName = await resolveTableNameById(selectedTableId)
+      } else {
         let nextTableName = keywordNewTableName
         if (keywordTableNameAuto) {
           const trimmedQuery = query.trim()
@@ -2213,7 +2310,22 @@ function App() {
 
       let targetTable = activeTable
       let targetTableName = ''
-      if (accountTargetTable === 'new') {
+      if (accountTargetTable === 'current') {
+        const selectedTableId = accountTargetTableId || activeTable.id
+        if (!selectedTableId) {
+          setMessage(tr('无法获取写入表格'))
+          return
+        }
+        if (selectedTableId !== activeTable.id) {
+          const selectedTable = await bitable.base.getTableById(selectedTableId)
+          if (!selectedTable) {
+            setMessage(tr('无法获取写入表格'))
+            return
+          }
+          targetTable = selectedTable
+        }
+        targetTableName = await resolveTableNameById(selectedTableId)
+      } else {
         let nextTableName = accountNewTableName
         if (accountTableNameAuto) {
           const trimmedName = resolvedUsername.trim()
@@ -2567,7 +2679,24 @@ function App() {
       if (accountInfoMode === 'column') {
         let targetTable = activeTable
         let targetTableName = ''
-        if (accountInfoColumnTargetTable === 'new') {
+        let shouldUpdateSource = true
+        if (accountInfoColumnTargetTable === 'current') {
+          const selectedTableId = accountInfoColumnTargetTableId || activeTable.id
+          if (!selectedTableId) {
+            setMessage(tr('无法获取写入表格'))
+            return
+          }
+          shouldUpdateSource = selectedTableId === activeTable.id
+          if (!shouldUpdateSource) {
+            const selectedTable = await bitable.base.getTableById(selectedTableId)
+            if (!selectedTable) {
+              setMessage(tr('无法获取写入表格'))
+              return
+            }
+            targetTable = selectedTable
+          }
+          targetTableName = await resolveTableNameById(selectedTableId)
+        } else {
           let nextTableName = accountInfoColumnNewTableName
           if (accountInfoColumnTableNameAuto) {
             nextTableName = getDefaultAccountInfoTableName()
@@ -2586,15 +2715,16 @@ function App() {
             setMessage(msg)
             return
           }
+          shouldUpdateSource = false
         }
 
         const fieldMetaList = await ensureFields(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, accountInfoSelection)
         await refreshFields()
         let writers = await buildFieldWriters(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, fieldMetaList, accountInfoSelection)
         writers = await attachPrimaryNameWriter(targetTable, fieldMetaList, writers)
-        const isNewTargetTable = accountInfoColumnTargetTable === 'new'
+        const appendToTargetTable = !shouldUpdateSource
         const seenAccounts = new Set<string>()
-        if (isNewTargetTable) {
+        if (appendToTargetTable) {
           const existingAccounts = await collectExistingKeys(targetTable, 'TT账户URL', normalizeAccountKey, { maxScan: 5000 })
           existingAccounts.forEach(accountKey => seenAccounts.add(accountKey))
         }
@@ -2610,7 +2740,7 @@ function App() {
 
         // 批量写入新表数据
         const flushNewTableRecords = async () => {
-          if (!isNewTargetTable || !newTableRecords.length || accountInfoStopRef.current) return
+          if (!appendToTargetTable || !newTableRecords.length || accountInfoStopRef.current) return
           const batch = newTableRecords.splice(0, newTableRecords.length)
           const { appendedCount, filledCount } = await addRecordsInBatches(targetTable, batch, { stopRef: accountInfoStopRef })
           const writtenCount = appendedCount + filledCount
@@ -2635,7 +2765,7 @@ function App() {
 
         // 检查记录是否有数据（用于判断是否跳过）- 仅当前表时有效，写入新表默认跳过检查
         const hasExistingData = async (record: { recordId: string; fields?: Record<string, IOpenCellValue> }): Promise<boolean> => {
-          if (isNewTargetTable) return false
+          if (appendToTargetTable) return false
 
           if (record.fields) {
             for (const [fieldId, value] of Object.entries(record.fields)) {
@@ -2664,7 +2794,7 @@ function App() {
 
           const accountKey = normalizeAccountKey(name)
           if (!accountKey) return
-          if (isNewTargetTable && seenAccounts.has(accountKey)) {
+          if (appendToTargetTable && seenAccounts.has(accountKey)) {
             skipped++
             return
           }
@@ -2688,7 +2818,7 @@ function App() {
             const recordData = await buildAccountInfoRecord(info, writers)
             if (!recordData) return
 
-            if (isNewTargetTable) {
+            if (appendToTargetTable) {
               seenAccounts.add(accountKey)
               newTableRecords.push(recordData)
               if (newTableRecords.length >= 50) {
@@ -2726,7 +2856,7 @@ function App() {
           pageToken = result.pageToken
         }
 
-        if (isNewTargetTable && newTableRecords.length && !accountInfoStopRef.current) {
+        if (appendToTargetTable && newTableRecords.length && !accountInfoStopRef.current) {
           await flushNewTableRecords()
         }
 
@@ -2736,8 +2866,8 @@ function App() {
             used: processed,
             remaining: formatRemaining(remainingAfterWrite)
           }) + quotaNote)
-        } else if (isNewTargetTable) {
-          setMessage(tr('已写入新表格「{{tableName}}」，共 {{count}} 条记录', {
+        } else if (appendToTargetTable) {
+          setMessage(tr('已写入表格「{{tableName}}」，共 {{count}} 条记录', {
             tableName: targetTableName || accountInfoColumnNewTableName,
             count: processed,
             used: processed,
@@ -2753,14 +2883,33 @@ function App() {
       } else {
         // 模式2: 批量输入账号
         let targetTable = activeTable
-        let nextTableName = newTableName
-        if (batchTargetTable === 'new' && accountInfoBatchTableNameAuto) {
-          nextTableName = getDefaultAccountInfoTableName()
-          setNewTableName(nextTableName)
-        }
-        const targetTableName = sanitizeTableName(nextTableName)
-        if (batchTargetTable === 'new' && targetTableName !== nextTableName.trim()) {
-          setNewTableName(targetTableName)
+        let targetTableName = ''
+
+        if (batchTargetTable === 'current') {
+          const selectedTableId = accountInfoBatchTargetTableId || activeTable.id
+          if (!selectedTableId) {
+            setMessage(tr('无法获取写入表格'))
+            return
+          }
+          if (selectedTableId !== activeTable.id) {
+            const selectedTable = await bitable.base.getTableById(selectedTableId)
+            if (!selectedTable) {
+              setMessage(tr('无法获取写入表格'))
+              return
+            }
+            targetTable = selectedTable
+          }
+          targetTableName = await resolveTableNameById(selectedTableId)
+        } else {
+          let nextTableName = newTableName
+          if (accountInfoBatchTableNameAuto) {
+            nextTableName = getDefaultAccountInfoTableName()
+            setNewTableName(nextTableName)
+          }
+          targetTableName = sanitizeTableName(nextTableName)
+          if (targetTableName !== nextTableName.trim()) {
+            setNewTableName(targetTableName)
+          }
         }
 
         if (batchTargetTable === 'new') {
@@ -2912,10 +3061,18 @@ function App() {
         setMessage(tr('请选择输入字段'));
         return;
       }
-      if (audioTargetTable === 'current' && !audioOutputField) {
-        console.error('请选择输出字段');
-        setMessage(tr('请选择输出字段'));
-        return;
+      if (audioTargetTable === 'current') {
+        const selectedTableId = audioTargetTableId || tableId
+        if (!selectedTableId) {
+          setMessage(tr('无法获取当前表格'))
+          return
+        }
+        const shouldUpdateSource = selectedTableId === tableId
+        if (shouldUpdateSource && !audioOutputField) {
+          console.error('请选择输出字段');
+          setMessage(tr('请选择输出字段'));
+          return;
+        }
       }
     } else {
       if (!audioBatchInput.trim()) {
@@ -3026,6 +3183,12 @@ function App() {
       }
       let remainingAfterWrite = typeof quotaInfo?.remaining === 'number' ? quotaInfo.remaining : null
       let quotaNote = ''
+      const selectedTargetTableId = audioTargetTable === 'current'
+        ? (audioTargetTableId || activeTable.id)
+        : ''
+      const shouldUpdateSource = audioMode === 'column'
+        && audioTargetTable === 'current'
+        && selectedTargetTableId === activeTable.id
 
       // 目标表
       let targetTable = activeTable;
@@ -3049,9 +3212,19 @@ function App() {
           setMessage(msg);
           return;
         }
+      } else if (audioTargetTable === 'current') {
+        if (selectedTargetTableId && selectedTargetTableId !== activeTable.id) {
+          const selectedTable = await bitable.base.getTableById(selectedTargetTableId)
+          if (!selectedTable) {
+            setMessage(tr('无法获取写入表格'))
+            return
+          }
+          targetTable = selectedTable
+        }
+        targetTableName = await resolveTableNameById(selectedTargetTableId || activeTable.id)
       }
 
-      if (audioMode === 'column' && targetTableMode === 'current') {
+      if (audioMode === 'column' && shouldUpdateSource) {
         const outputMeta = await activeTable.getFieldMetaById(audioOutputField)
         if (outputMeta.type !== FieldType.Text) {
           setMessage(tr('输出字段类型不支持，请选择文本字段'))
@@ -3060,7 +3233,8 @@ function App() {
       }
 
       // 目标表字段（仅在需要写入新行时创建/确保）
-      const audioSelectedMap = (targetTableMode === 'new' || audioMode === 'batch')
+      const shouldAppendRecords = targetTableMode === 'new' || !shouldUpdateSource
+      const audioSelectedMap = shouldAppendRecords
         ? { '视频链接': true, '转写文案': true }
         : { '视频链接': false, '转写文案': false }
       const audioFieldMeta = await ensureFields(targetTable, AUDIO_FIELD_CONFIGS, audioSelectedMap);
@@ -3082,7 +3256,7 @@ function App() {
           const videoUrl = extractTextFromCell(cellValue);
           if (!videoUrl) return;
 
-          if (targetTableMode === 'current') {
+          if (shouldUpdateSource) {
             const outputValue = await activeTable.getCellValue(audioOutputField, record.recordId);
             if (!isCellValueEmpty(outputValue)) return;
             await activeTable.setCellValue(audioOutputField, record.recordId, tr('获取文案中..'));
@@ -3091,14 +3265,14 @@ function App() {
           try {
             const result = await fetchAudioTranscript(videoUrl);
             if (result.status === 'quota') {
-              if (targetTableMode === 'current') {
+              if (shouldUpdateSource) {
                 await activeTable.setCellValue(audioOutputField, record.recordId, '');
               }
               return;
             }
 
             if (audioShouldStopRef.current || result.status === 'aborted') {
-              if (targetTableMode === 'current') {
+              if (shouldUpdateSource) {
                 await activeTable.setCellValue(audioOutputField, record.recordId, '');
               }
               return;
@@ -3106,7 +3280,7 @@ function App() {
 
             if (result.status === 'error') {
               console.error('提取失败:', result.error);
-              if (targetTableMode === 'current') {
+              if (shouldUpdateSource) {
                 await activeTable.setCellValue(audioOutputField, record.recordId, '');
               }
               return;
@@ -3114,7 +3288,7 @@ function App() {
 
             const transcript = resolveTranscriptText(result.text, result.empty);
 
-            if (targetTableMode === 'current') {
+            if (shouldUpdateSource) {
               const fieldMeta = await activeTable.getFieldMetaById(audioOutputField);
               if (fieldMeta.type === FieldType.Text) {
                 await activeTable.setCellValue(audioOutputField, record.recordId, transcript);
@@ -3154,7 +3328,7 @@ function App() {
               const quotaResult = await applyQuotaConsumption(remainingAfterWrite, 1)
               remainingAfterWrite = quotaResult.remaining
               quotaNote = quotaResult.note
-              setMessage(tr('已写入新表 {{table}}，处理 {{count}} 条记录', {
+              setMessage(tr('已写入表格 {{table}}，处理 {{count}} 条记录', {
                 table: targetTableName || '',
                 count: processedCount,
                 used: processedCount,
@@ -3171,7 +3345,7 @@ function App() {
                 console.error('处理单条记录失败:', error);
               }
               if (error.message === 'Load failed' || error.name === 'AbortError') {
-                if (targetTableMode === 'current') {
+                if (shouldUpdateSource) {
                   await activeTable.setCellValue(audioOutputField, record.recordId, '');
                 }
                 await sleep(5000);
@@ -3180,7 +3354,7 @@ function App() {
             } else {
               console.error('处理单条记录失败:', error);
             }
-            if (targetTableMode === 'current') {
+            if (shouldUpdateSource) {
               await activeTable.setCellValue(audioOutputField, record.recordId, '');
             }
           }
@@ -3205,9 +3379,9 @@ function App() {
             remaining: formatRemaining(remainingAfterWrite)
           }) + quotaNote);
         } else {
-          setMessage(tr(targetTableMode === 'new'
-            ? '处理完成，已写入新表 {{table}} 共 {{count}} 条记录'
-            : '处理完成，共处理 {{count}} 条记录', {
+          setMessage(tr(shouldUpdateSource
+            ? '处理完成，共处理 {{count}} 条记录'
+            : '处理完成，已写入表格 {{table}} 共 {{count}} 条记录', {
             table: targetTableName || '',
             count: processedCount,
             used: processedCount,
@@ -3619,6 +3793,9 @@ function App() {
           keywordRunMode={keywordRunMode}
           keywordBaseId={keywordBaseId}
           keywordTargetTable={keywordTargetTable}
+          keywordTargetTableId={keywordTargetTableId}
+          currentTableId={tableId}
+          tableOptions={tableOptions}
           keywordNewTableName={keywordNewTableName}
           loading={loading}
           keywordQuotaInsufficient={keywordQuotaInsufficient}
@@ -3635,6 +3812,7 @@ function App() {
           setRegion={setRegion}
           setKeywordRunMode={setKeywordRunMode}
           setKeywordTargetTable={setKeywordTargetTable}
+          setKeywordTargetTableId={setKeywordTargetTableId}
           setKeywordNewTableName={handleKeywordNewTableNameChange}
           handleKeywordFieldChange={handleKeywordFieldChange}
           writeKeywordTikTokData={writeKeywordTikTokData}
@@ -3652,6 +3830,9 @@ function App() {
           userRegion={userRegion}
           accountRunMode={accountRunMode}
           accountBaseId={keywordBaseId}
+          accountTargetTableId={accountTargetTableId}
+          currentTableId={tableId}
+          tableOptions={tableOptions}
           accountOfflineAuthStatus={keywordOfflineAuthStatus}
           accountOfflineTasks={accountOfflineTaskList}
           accountOfflineActiveTask={accountOfflineActiveTask}
@@ -3668,6 +3849,7 @@ function App() {
           setUserRegion={setUserRegion}
           setAccountRunMode={setAccountRunMode}
           setAccountTargetTable={setAccountTargetTable}
+          setAccountTargetTableId={setAccountTargetTableId}
           setAccountNewTableName={handleAccountNewTableNameChange}
           handleAccountFieldChange={handleAccountFieldChange}
           writeAccountTikTokData={writeAccountTikTokData}
@@ -3681,6 +3863,8 @@ function App() {
           fields={fields}
           accountInfoRunMode={accountInfoRunMode}
           accountInfoBaseId={keywordBaseId}
+          currentTableId={tableId}
+          tableOptions={tableOptions}
           accountInfoOfflineAuthStatus={keywordOfflineAuthStatus}
           accountInfoOfflineTasks={accountInfoOfflineTaskList}
           accountInfoOfflineActiveTask={accountInfoOfflineActiveTask}
@@ -3695,10 +3879,14 @@ function App() {
           setAccountInfoOverwrite={setAccountInfoOverwrite}
           accountInfoColumnTargetTable={accountInfoColumnTargetTable}
           setAccountInfoColumnTargetTable={setAccountInfoColumnTargetTable}
+          accountInfoColumnTargetTableId={accountInfoColumnTargetTableId}
+          setAccountInfoColumnTargetTableId={setAccountInfoColumnTargetTableId}
           accountInfoColumnNewTableName={accountInfoColumnNewTableName}
           setAccountInfoColumnNewTableName={handleAccountInfoColumnNewTableNameChange}
           batchTargetTable={batchTargetTable}
           setBatchTargetTable={setBatchTargetTable}
+          accountInfoBatchTargetTableId={accountInfoBatchTargetTableId}
+          setAccountInfoBatchTargetTableId={setAccountInfoBatchTargetTableId}
           newTableName={newTableName}
           setNewTableName={handleAccountInfoBatchNewTableNameChange}
           accountInfoBatchInput={accountInfoBatchInput}
@@ -3720,6 +3908,9 @@ function App() {
           fields={fields}
           audioRunMode={audioRunMode}
           audioBaseId={keywordBaseId}
+          audioTargetTableId={audioTargetTableId}
+          currentTableId={tableId}
+          tableOptions={tableOptions}
           audioOfflineAuthStatus={keywordOfflineAuthStatus}
           audioOfflineTasks={audioOfflineTaskList}
           audioOfflineActiveTask={audioOfflineActiveTask}
@@ -3743,6 +3934,7 @@ function App() {
           handleAudioExtract={handleAudioExtract}
           handleAudioStop={stopAudioExtraction}
           setAudioRunMode={setAudioRunMode}
+          setAudioTargetTableId={setAudioTargetTableId}
         />
 
         <OfflineTaskCenterSection

@@ -35,6 +35,8 @@ interface AccountInfoSectionProps {
   fields: IFieldMeta[]
   accountInfoRunMode: AccountInfoRunMode
   accountInfoBaseId: string
+  currentTableId: string
+  tableOptions: { id: string; name: string }[]
   accountInfoOfflineAuthStatus: 'ready' | 'missing' | 'loading'
   accountInfoOfflineTasks: OfflineTaskSummary[]
   accountInfoOfflineActiveTask: OfflineTaskSummary | null
@@ -49,10 +51,14 @@ interface AccountInfoSectionProps {
   setAccountInfoOverwrite: (val: boolean) => void
   accountInfoColumnTargetTable: TableTarget
   setAccountInfoColumnTargetTable: (val: TableTarget) => void
+  accountInfoColumnTargetTableId: string
+  setAccountInfoColumnTargetTableId: (val: string) => void
   accountInfoColumnNewTableName: string
   setAccountInfoColumnNewTableName: (val: string) => void
   batchTargetTable: TableTarget
   setBatchTargetTable: (val: TableTarget) => void
+  accountInfoBatchTargetTableId: string
+  setAccountInfoBatchTargetTableId: (val: string) => void
   newTableName: string
   setNewTableName: (val: string) => void
   accountInfoBatchInput: string
@@ -93,6 +99,8 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
     fields,
     accountInfoRunMode,
     accountInfoBaseId,
+    currentTableId,
+    tableOptions,
     accountInfoOfflineAuthStatus,
     accountInfoOfflineTasks,
     accountInfoOfflineActiveTask,
@@ -107,10 +115,14 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
     setAccountInfoOverwrite,
     accountInfoColumnTargetTable,
     setAccountInfoColumnTargetTable,
+    accountInfoColumnTargetTableId,
+    setAccountInfoColumnTargetTableId,
     accountInfoColumnNewTableName,
     setAccountInfoColumnNewTableName,
     batchTargetTable,
     setBatchTargetTable,
+    accountInfoBatchTargetTableId,
+    setAccountInfoBatchTargetTableId,
     newTableName,
     setNewTableName,
     accountInfoBatchInput,
@@ -150,6 +162,12 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
   const formatCount = (value?: number) => (
     typeof value === 'number' ? value : 0
   )
+
+  const resolvedTableOptions = tableOptions.length
+    ? tableOptions
+    : (currentTableId ? [{ id: currentTableId, name: tr('当前表格') }] : [])
+  const selectedColumnTargetTableId = accountInfoColumnTargetTableId || currentTableId
+  const selectedBatchTargetTableId = accountInfoBatchTargetTableId || currentTableId
 
   return (
     <div className="section">
@@ -261,8 +279,22 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                       onChange={() => setAccountInfoColumnTargetTable('current')}
                       disabled={accountInfoLoading}
                     />
-                    {tr('写入当前表格')}
+                    {tr('写入表格')}
                   </label>
+                  {accountInfoColumnTargetTable === 'current' && (
+                    <select
+                      value={selectedColumnTargetTableId}
+                      onChange={(e) => setAccountInfoColumnTargetTableId(e.target.value)}
+                      disabled={accountInfoLoading}
+                      className="select-styled"
+                    >
+                      {resolvedTableOptions.map(option => (
+                        <option key={option.id} value={option.id}>
+                          {option.name || tr('未命名表格')}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
@@ -305,8 +337,22 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                       onChange={() => setBatchTargetTable('current')}
                       disabled={accountInfoLoading}
                     />
-                    {tr('写入当前表格')}
+                    {tr('写入表格')}
                   </label>
+                  {batchTargetTable === 'current' && (
+                    <select
+                      value={selectedBatchTargetTableId}
+                      onChange={(e) => setAccountInfoBatchTargetTableId(e.target.value)}
+                      disabled={accountInfoLoading}
+                      className="select-styled"
+                    >
+                      {resolvedTableOptions.map(option => (
+                        <option key={option.id} value={option.id}>
+                          {option.name || tr('未命名表格')}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <label className="radio-label">
                     <input
                       type="radio"

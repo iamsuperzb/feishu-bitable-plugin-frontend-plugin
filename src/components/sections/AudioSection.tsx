@@ -35,6 +35,9 @@ interface AudioSectionProps {
   fields: IFieldMeta[]
   audioRunMode: AudioRunMode
   audioBaseId: string
+  audioTargetTableId: string
+  currentTableId: string
+  tableOptions: { id: string; name: string }[]
   audioOfflineAuthStatus: 'ready' | 'missing' | 'loading'
   audioOfflineTasks: OfflineTaskSummary[]
   audioOfflineActiveTask: OfflineTaskSummary | null
@@ -58,6 +61,7 @@ interface AudioSectionProps {
   handleAudioExtract: () => void
   handleAudioStop: () => void
   setAudioRunMode: (val: AudioRunMode) => void
+  setAudioTargetTableId: (val: string) => void
 }
 
 export default function AudioSection(props: AudioSectionProps) {
@@ -68,6 +72,9 @@ export default function AudioSection(props: AudioSectionProps) {
     fields,
     audioRunMode,
     audioBaseId,
+    audioTargetTableId,
+    currentTableId,
+    tableOptions,
     audioOfflineAuthStatus,
     audioOfflineTasks,
     audioOfflineActiveTask,
@@ -90,7 +97,8 @@ export default function AudioSection(props: AudioSectionProps) {
     audioQuotaInsufficient,
     handleAudioExtract,
     handleAudioStop,
-    setAudioRunMode
+    setAudioRunMode,
+    setAudioTargetTableId
   } = props
 
   const allowStart = !audioLoading && !audioOfflineRunning
@@ -118,6 +126,11 @@ export default function AudioSection(props: AudioSectionProps) {
   const formatCount = (value?: number) => (
     typeof value === 'number' ? value : 0
   )
+
+  const resolvedTableOptions = tableOptions.length
+    ? tableOptions
+    : (currentTableId ? [{ id: currentTableId, name: tr('当前表格') }] : [])
+  const selectedTargetTableId = audioTargetTableId || currentTableId
 
   return (
     <div className="section">
@@ -256,13 +269,27 @@ export default function AudioSection(props: AudioSectionProps) {
                     onChange={() => setAudioTargetTable('current')}
                     disabled={audioLoading}
                   />
-                  {tr('写入当前表格')}
+                  {tr('写入表格')}
                 </label>
+                {audioTargetTable === 'current' && (
+                  <select
+                    value={selectedTargetTableId}
+                    onChange={(e) => setAudioTargetTableId(e.target.value)}
+                    disabled={audioLoading}
+                    className="select-styled"
+                  >
+                    {resolvedTableOptions.map(option => (
+                      <option key={option.id} value={option.id}>
+                        {option.name || tr('未命名表格')}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
           </div>
 
-          {audioMode === 'column' && audioTargetTable === 'current' && (
+          {audioMode === 'column' && audioTargetTable === 'current' && selectedTargetTableId === currentTableId && (
             <div className="form-item full-width">
               <label>{tr('写入列:')}</label>
               <select

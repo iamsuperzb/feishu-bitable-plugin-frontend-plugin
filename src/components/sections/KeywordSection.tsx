@@ -40,6 +40,9 @@ interface KeywordSectionProps {
   keywordRunMode: KeywordRunMode
   keywordBaseId: string
   keywordTargetTable: TableTarget
+  keywordTargetTableId: string
+  currentTableId: string
+  tableOptions: { id: string; name: string }[]
   keywordNewTableName: string
   loading: boolean
   keywordQuotaInsufficient: boolean
@@ -56,6 +59,7 @@ interface KeywordSectionProps {
   setRegion: (val: string) => void
   setKeywordRunMode: (val: KeywordRunMode) => void
   setKeywordTargetTable: (val: TableTarget) => void
+  setKeywordTargetTableId: (val: string) => void
   setKeywordNewTableName: (val: string) => void
   handleKeywordFieldChange: (fieldName: string) => void
   writeKeywordTikTokData: () => void
@@ -98,6 +102,9 @@ export default function KeywordSection(props: KeywordSectionProps) {
     keywordRunMode,
     keywordBaseId,
     keywordTargetTable,
+    keywordTargetTableId,
+    currentTableId,
+    tableOptions,
     keywordNewTableName,
     loading,
     keywordQuotaInsufficient,
@@ -114,6 +121,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
     setRegion,
     setKeywordRunMode,
     setKeywordTargetTable,
+    setKeywordTargetTableId,
     setKeywordNewTableName,
     handleKeywordFieldChange,
     writeKeywordTikTokData,
@@ -148,6 +156,11 @@ export default function KeywordSection(props: KeywordSectionProps) {
   const formatCount = (value?: number) => (
     typeof value === 'number' ? value : 0
   )
+
+  const resolvedTableOptions = tableOptions.length
+    ? tableOptions
+    : (currentTableId ? [{ id: currentTableId, name: tr('当前表格') }] : [])
+  const selectedTargetTableId = keywordTargetTableId || currentTableId
 
   return (
     <div className="section">
@@ -267,8 +280,22 @@ export default function KeywordSection(props: KeywordSectionProps) {
                   onChange={() => setKeywordTargetTable('current')}
                   disabled={isCollecting}
                 />
-                {tr('写入当前表格')}
+                {tr('写入表格')}
               </label>
+              {keywordTargetTable === 'current' && (
+                <select
+                  value={selectedTargetTableId}
+                  onChange={(e) => setKeywordTargetTableId(e.target.value)}
+                  disabled={isCollecting}
+                  className="select-styled"
+                >
+                  {resolvedTableOptions.map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.name || tr('未命名表格')}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
