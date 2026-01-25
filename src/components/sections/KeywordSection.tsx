@@ -1,3 +1,5 @@
+import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
+
 type TableTarget = 'current' | 'new'
 type KeywordRunMode = 'online' | 'offline'
 
@@ -242,7 +244,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
                   disabled={isCollecting || keywordOfflineRunning}
                 />
                 {tr('立即执行')}
-                <span className="help-tip align-left">
+                <span className="help-tip align-left" onMouseEnter={adjustHelpTipWithinRoot}>
                   <span className="help-icon">?</span>
                   <span className="help-bubble">
                     {tr('立即执行：页面需要保持打开，关闭页面或关闭插件会停止运行')}
@@ -259,7 +261,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
                   disabled={isCollecting}
                 />
                 {tr('后台执行')}
-                <span className="help-tip align-right">
+                <span className="help-tip align-right" onMouseEnter={adjustHelpTipWithinRoot}>
                   <span className="help-icon">?</span>
                   <span className="help-bubble">
                     {tr('后台执行：关闭页面或关闭插件也会继续运行')}
