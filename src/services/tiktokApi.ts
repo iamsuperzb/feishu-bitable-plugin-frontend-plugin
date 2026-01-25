@@ -424,6 +424,104 @@ export const startKeywordOfflineTask = async (
 }
 
 /**
+ * 发起账号采集后台任务
+ */
+export const startAccountOfflineTask = async (
+  payload: {
+    username: string
+    region: string
+    baseId: string
+    targetTable: 'current' | 'new'
+    tableId?: string
+    tableName?: string
+    selectedFields?: string[]
+  },
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/account/start`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.SEARCH }
+  )
+}
+
+/**
+ * 发起账号信息后台任务
+ */
+export const startAccountInfoOfflineTask = async (
+  payload: {
+    baseId: string
+    mode: 'column' | 'batch'
+    targetTable: 'current' | 'new'
+    tableId?: string
+    tableName?: string
+    sourceTableId?: string
+    usernameFieldId?: string
+    usernameFieldName?: string
+    overwrite?: boolean
+    batchUsernames?: string[]
+    selectedFields?: string[]
+  },
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/account-info/start`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.SEARCH }
+  )
+}
+
+/**
+ * 发起音频后台任务
+ */
+export const startAudioOfflineTask = async (
+  payload: {
+    baseId: string
+    mode: 'column' | 'batch'
+    targetTable: 'current' | 'new'
+    tableId?: string
+    tableName?: string
+    sourceTableId?: string
+    videoFieldId?: string
+    videoFieldName?: string
+    outputFieldId?: string
+    outputFieldName?: string
+    batchUrls?: string[]
+  },
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/audio/start`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.SEARCH }
+  )
+}
+
+/**
  * 后台任务列表
  *
  * @param fetchFn - 带身份的 fetch 函数

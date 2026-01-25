@@ -13,6 +13,7 @@ interface OfflineTaskSummary {
   createdAt?: string
   updatedAt?: string
   keyword?: string
+  username?: string
   tableName?: string
 }
 
@@ -33,7 +34,8 @@ const formatStatusText = (tr: OfflineTaskCenterSectionProps['tr'], status?: stri
 }
 
 const formatTaskTitle = (tr: OfflineTaskCenterSectionProps['tr'], task: OfflineTaskSummary) => {
-  const parts = [task.keyword, task.tableName].filter(Boolean)
+  const main = task.keyword || task.username
+  const parts = [main, task.tableName].filter(Boolean)
   if (parts.length > 0) return parts.join('｜')
   return tr('任务')
 }

@@ -1,4 +1,30 @@
 type TableTarget = 'current' | 'new'
+type AccountRunMode = 'online' | 'offline'
+
+interface OfflineTaskProgress {
+  fetched?: number
+  written?: number
+  failed?: number
+  skipped?: number
+  page?: number
+}
+
+interface OfflineTaskSummary {
+  id: string
+  status?: 'queued' | 'running' | 'completed' | 'stopped'
+  progress?: OfflineTaskProgress
+  createdAt?: string
+  updatedAt?: string
+  username?: string
+  tableName?: string
+}
+
+interface OfflineTaskDetail extends OfflineTaskSummary {
+  payload?: {
+    tableName?: string
+  }
+  stopReason?: string
+}
 
 interface AccountSectionProps {
   tr: (key: string, options?: Record<string, unknown>) => string
@@ -9,6 +35,16 @@ interface AccountSectionProps {
   collectType: number
   username: string
   userRegion: string
+  accountRunMode: AccountRunMode
+  accountBaseId: string
+  accountOfflineAuthTokenInput: string
+  accountOfflineAuthStatus: 'ready' | 'missing' | 'loading'
+  accountOfflineAuthSaving: boolean
+  accountOfflineTasks: OfflineTaskSummary[]
+  accountOfflineActiveTask: OfflineTaskSummary | null
+  accountOfflineDetail: OfflineTaskDetail | null
+  accountOfflineRunning: boolean
+  accountOfflineStopping: boolean
   accountTargetTable: TableTarget
   accountNewTableName: string
   loading: boolean
@@ -17,6 +53,10 @@ interface AccountSectionProps {
   accountRequiredFields: Set<string>
   setUsername: (val: string) => void
   setUserRegion: (val: string) => void
+  setAccountRunMode: (val: AccountRunMode) => void
+  setAccountBaseId: (val: string) => void
+  setAccountOfflineAuthTokenInput: (val: string) => void
+  saveAccountOfflineAuthToken: () => void
   setAccountTargetTable: (val: TableTarget) => void
   setAccountNewTableName: (val: string) => void
   handleAccountFieldChange: (fieldName: string) => void
@@ -57,6 +97,16 @@ export default function AccountSection(props: AccountSectionProps) {
     collectType,
     username,
     userRegion,
+    accountRunMode,
+    accountBaseId,
+    accountOfflineAuthTokenInput,
+    accountOfflineAuthStatus,
+    accountOfflineAuthSaving,
+    accountOfflineTasks,
+    accountOfflineActiveTask,
+    accountOfflineDetail,
+    accountOfflineRunning,
+    accountOfflineStopping,
     accountTargetTable,
     accountNewTableName,
     loading,
@@ -65,6 +115,10 @@ export default function AccountSection(props: AccountSectionProps) {
     accountRequiredFields,
     setUsername,
     setUserRegion,
+    setAccountRunMode,
+    setAccountBaseId,
+    setAccountOfflineAuthTokenInput,
+    saveAccountOfflineAuthToken,
     setAccountTargetTable,
     setAccountNewTableName,
     handleAccountFieldChange,
@@ -72,12 +126,42 @@ export default function AccountSection(props: AccountSectionProps) {
     stopCollection
   } = props
 
+  const showOnlineStop = isCollecting && collectType === 2
+  const showOfflineStop = accountOfflineRunning
+  const showStop = showOnlineStop || showOfflineStop
+  const allowStart = !isCollecting && !accountOfflineRunning
+  const offlineBlocked = accountRunMode === 'offline' && (
+    !accountBaseId.trim() || accountOfflineAuthStatus !== 'ready'
+  )
+  const stopInProgress = isStopping || accountOfflineStopping
+
+  const formatTime = (value?: string) => {
+    if (!value) return '-'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    const pad = (num: number) => String(num).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+
+  const formatStatus = (status?: string) => {
+    if (status === 'queued') return tr('排队中')
+    if (status === 'running') return tr('运行中')
+    if (status === 'completed') return tr('已完成')
+    if (status === 'stopped') return tr('已停止')
+    return tr('未知')
+  }
+
+  const formatCount = (value?: number) => (
+    typeof value === 'number' ? value : 0
+  )
+
   return (
     <div className="section">
       <div className="section-header" onClick={onToggle}>
         <h2>
           {tr('单账号作品表现')}
           {isCollecting && collectType === 2 && <span className="running-indicator">{tr('采集中')}</span>}
+          {!isCollecting && accountOfflineRunning && <span className="running-indicator">{tr('后台运行中')}</span>}
         </h2>
         <span className={`collapse-icon ${open ? '' : 'collapsed'}`}>▼</span>
       </div>
@@ -124,6 +208,34 @@ export default function AccountSection(props: AccountSectionProps) {
           </div>
 
           <div className="form-item full-width">
+            <label>{tr('运行方式:')}</label>
+            <div className="radio-group">
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="accountRunMode"
+                  value="online"
+                  checked={accountRunMode === 'online'}
+                  onChange={() => setAccountRunMode('online')}
+                  disabled={isCollecting || accountOfflineRunning}
+                />
+                {tr('立即执行')}
+              </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="accountRunMode"
+                  value="offline"
+                  checked={accountRunMode === 'offline'}
+                  onChange={() => setAccountRunMode('offline')}
+                  disabled={isCollecting}
+                />
+                {tr('后台执行')}
+              </label>
+            </div>
+          </div>
+
+          <div className="form-item full-width">
             <label>{tr('写入目标:')}</label>
             <div className="radio-group">
               <label className="radio-label">
@@ -164,24 +276,66 @@ export default function AccountSection(props: AccountSectionProps) {
           )}
         </div>
 
+        {accountRunMode === 'offline' && (
+          <div className="sub-section">
+            <h3>{tr('后台任务设置')}</h3>
+            <div className="form-item full-width">
+              <label>{tr('表格编号:')}</label>
+              <input
+                type="text"
+                value={accountBaseId}
+                onChange={(e) => setAccountBaseId(e.target.value)}
+                placeholder={tr('请填写表格编号')}
+                disabled={accountOfflineRunning}
+              />
+            </div>
+            <div className="form-item full-width">
+              <label>{tr('授权码:')}</label>
+              <div className="redeem-form">
+                <input
+                  type="text"
+                  className="redeem-input"
+                  value={accountOfflineAuthTokenInput}
+                  onChange={(e) => setAccountOfflineAuthTokenInput(e.target.value)}
+                  placeholder={tr('请填写授权码')}
+                  disabled={accountOfflineAuthSaving || accountOfflineRunning}
+                />
+                <button
+                  type="button"
+                  className="redeem-open-btn"
+                  onClick={saveAccountOfflineAuthToken}
+                  disabled={accountOfflineAuthSaving || !accountOfflineAuthTokenInput.trim()}
+                >
+                  {accountOfflineAuthSaving ? tr('保存中...') : tr('保存')}
+                </button>
+              </div>
+              <div className={`offline-auth-tip ${accountOfflineAuthStatus}`}>
+                {accountOfflineAuthStatus === 'ready' && tr('已保存授权，可直接后台执行')}
+                {accountOfflineAuthStatus === 'missing' && tr('未授权，后台任务无法开始')}
+                {accountOfflineAuthStatus === 'loading' && tr('正在读取授权状态')}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="search-action">
-          {!isCollecting ? (
+          {allowStart ? (
             <>
               <button
                 onClick={writeAccountTikTokData}
-                disabled={loading || !username || accountQuotaInsufficient}
+                disabled={loading || !username || accountQuotaInsufficient || offlineBlocked}
               >
                 {tr('开始采集')}
               </button>
             </>
           ) : (
-            collectType === 2 && (
+            showStop && (
               <button
                 onClick={stopCollection}
-                className={`stop-button ${isStopping ? 'stopping' : ''}`}
-                disabled={isStopping}
+                className={`stop-button ${stopInProgress ? 'stopping' : ''}`}
+                disabled={stopInProgress}
               >
-                {isStopping ? tr('正在停止...') : tr('停止采集')}
+                {stopInProgress ? tr('正在停止...') : tr('停止采集')}
               </button>
             )
           )}
@@ -222,6 +376,39 @@ export default function AccountSection(props: AccountSectionProps) {
             ))}
           </div>
         </div>
+
+        {(accountRunMode === 'offline' || accountOfflineTasks.length > 0) && (
+          <div className="sub-section">
+            <h3>{tr('后台任务进度')}</h3>
+            {(accountOfflineDetail || accountOfflineActiveTask) && (
+              <div className="offline-card">
+                <div className="offline-title">{tr('当前任务详情')}</div>
+                <div className="offline-meta">
+                  {tr('状态')}: {formatStatus(accountOfflineDetail?.status || accountOfflineActiveTask?.status)}
+                </div>
+                <div className="offline-meta">
+                  {tr('已获取')} {formatCount(accountOfflineDetail?.progress?.fetched || accountOfflineActiveTask?.progress?.fetched)}，
+                  {tr('已写入')} {formatCount(accountOfflineDetail?.progress?.written || accountOfflineActiveTask?.progress?.written)}，
+                  {tr('已跳过（重复内容）')} {formatCount(accountOfflineDetail?.progress?.skipped || accountOfflineActiveTask?.progress?.skipped)}，
+                  {tr('失败')} {formatCount(accountOfflineDetail?.progress?.failed || accountOfflineActiveTask?.progress?.failed)}
+                </div>
+                <div className="offline-meta">
+                  {tr('更新时间')}: {formatTime(accountOfflineDetail?.updatedAt || accountOfflineActiveTask?.updatedAt)}
+                </div>
+                {accountOfflineDetail?.payload?.tableName && (
+                  <div className="offline-meta">
+                    {tr('写入表格')}: {accountOfflineDetail.payload.tableName}
+                  </div>
+                )}
+                {accountOfflineDetail?.stopReason && (
+                  <div className="offline-meta">
+                    {tr('停止原因')}: {accountOfflineDetail.stopReason}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
