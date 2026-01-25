@@ -223,7 +223,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                   disabled={accountInfoLoading || accountInfoOfflineRunning}
                 />
                 {tr('立即执行')}
-                <span className="help-tip">
+                <span className="help-tip align-left">
                   <span className="help-icon">?</span>
                   <span className="help-bubble">
                     {tr('立即执行：页面需要保持打开，关闭页面或关闭插件会停止运行')}
@@ -240,7 +240,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                   disabled={accountInfoLoading}
                 />
                 {tr('后台执行')}
-                <span className="help-tip">
+                <span className="help-tip align-right">
                   <span className="help-icon">?</span>
                   <span className="help-bubble">
                     {tr('后台执行：关闭页面或关闭插件也会继续运行')}

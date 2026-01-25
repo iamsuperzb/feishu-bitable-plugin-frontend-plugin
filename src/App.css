@@ -580,6 +580,7 @@ button:disabled {
   max-height: 2000px;
   padding: 15px 0;
   opacity: 1;
+  overflow: visible;
 }
 
 .section-content.collapsed {
@@ -757,9 +758,9 @@ button:disabled {
 .help-bubble {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;
+  left: 0;
   width: 240px;
-  max-width: 260px;
+  max-width: calc(100vw - 32px);
   padding: 8px 10px;
   background: #ffffff;
   color: #1f2329;
@@ -777,6 +778,11 @@ button:disabled {
   text-align: left;
   word-break: break-word;
   writing-mode: horizontal-tb;
+}
+
+.help-tip.align-right .help-bubble {
+  left: auto;
+  right: 0;
 }
 
 .help-tip:hover .help-bubble {
