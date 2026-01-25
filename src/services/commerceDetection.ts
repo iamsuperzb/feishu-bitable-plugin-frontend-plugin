@@ -75,6 +75,18 @@ const safeJsonParse = (raw: unknown): Record<string, unknown> | unknown[] | null
   }
 }
 
+const parseAnchorExtras = (raw: unknown): Record<string, unknown> | null => {
+  if (!raw) return null
+  if (typeof raw === 'string') {
+    const parsed = safeJsonParse(raw)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : null
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>
+  return null
+}
+
 /**
  * 判断是否为有效的 HTTP/HTTPS URL
  *
@@ -125,6 +137,8 @@ export const translateCommerceReason = (reason: string): string => {
     'anchor:anchor_shop': '商品锚点(店铺)',
     'anchor:anchor_product': '商品锚点(产品)',
     'anchor:anchor_commerce': '商品锚点(电商)',
+    'anchor_extras_is_ec_video': '电商视频标记',
+    'anchor_extras_product_cnt': '电商商品数量',
     'bottom_products': '底部商品栏',
     'products_info': '商品信息列表',
     'right_products': '右侧商品栏',
@@ -369,6 +383,12 @@ export const commerceFromAweme = (v: Record<string, unknown>): CommerceResult =>
     }
   }
 
+  const anchorExtras = parseAnchorExtras(v.anchors_extras)
+  const extraProductCount = parsePrice(anchorExtras?.product_cnt)
+  const isEcVideo = Boolean(anchorExtras?.is_ec_video)
+  if (isEcVideo) reasons.push('anchor_extras_is_ec_video')
+  if (extraProductCount && extraProductCount > 0) reasons.push('anchor_extras_product_cnt')
+
   // 2. 检查 bottom_products
   const bottom = parseProductList(v.bottom_products)
   if (bottom.length) {
@@ -409,6 +429,9 @@ export const commerceFromAweme = (v: Record<string, unknown>): CommerceResult =>
 
   // 去重产品（不限制数量，找到几个显示几个）
   const uniqueProducts = dedupeProducts(products)
+  const fallbackProductCount = extraProductCount && extraProductCount > 0
+    ? Math.floor(extraProductCount)
+    : 0
 
   // 最终判断：有产品、有标志、有佣金/品牌标记、或任一维度命中（reasons 不为空）
   const isCommerce =
@@ -423,7 +446,7 @@ export const commerceFromAweme = (v: Record<string, unknown>): CommerceResult =>
     isCommerce,
     reasons: Array.from(new Set(reasons)),
     products: uniqueProducts,
-    productsTotal: uniqueProducts.length,
+    productsTotal: Math.max(uniqueProducts.length, fallbackProductCount),
     firstProduct: uniqueProducts[0],
     productsText
   }
