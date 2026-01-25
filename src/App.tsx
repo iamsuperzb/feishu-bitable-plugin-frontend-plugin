@@ -110,6 +110,7 @@ interface OfflineTaskSummary {
   createdAt?: string
   updatedAt?: string
   keyword?: string
+  tableName?: string
 }
 
 interface OfflineTaskDetail extends OfflineTaskSummary {

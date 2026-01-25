@@ -26,6 +26,7 @@ interface OfflineTaskSummary {
   createdAt?: string
   updatedAt?: string
   keyword?: string
+  tableName?: string
 }
 
 interface OfflineTaskDetail extends OfflineTaskSummary {
@@ -171,6 +172,12 @@ export default function KeywordSection(props: KeywordSectionProps) {
   const formatCount = (value?: number) => (
     typeof value === 'number' ? value : 0
   )
+
+  const formatTaskTitle = (task: OfflineTaskSummary) => {
+    const parts = [task.keyword, task.tableName].filter(Boolean)
+    if (parts.length > 0) return parts.join('｜')
+    return tr('任务')
+  }
 
   return (
     <div className="section">
@@ -419,22 +426,50 @@ export default function KeywordSection(props: KeywordSectionProps) {
               )}
               {!keywordOfflineLoading && keywordOfflineTasks.length > 0 && (
                 <div className="offline-list">
-                  {keywordOfflineTasks.slice(0, 5).map((task, index) => (
-                    <div key={task.id} className="offline-item">
-                      <div className="offline-title">
-                        {tr('任务')} {index + 1}{task.keyword ? `：${task.keyword}` : ''}
+                  {keywordOfflineTasks.slice(0, 5).map((task) => {
+                    const activeTaskId = keywordOfflineDetail?.id || keywordOfflineActiveTask?.id
+                    const isActive = Boolean(activeTaskId && activeTaskId === task.id)
+                    const logs = isActive ? keywordOfflineLogs.slice(-5) : []
+                    return (
+                      <div key={task.id} className="offline-item">
+                        <div className="offline-title">
+                          {formatTaskTitle(task)}
+                        </div>
+                        <div className={`offline-status ${task.status || 'unknown'}`}>
+                          {formatStatus(task.status)}
+                        </div>
+                        <div className="offline-meta">
+                          {tr('已获取')} {formatCount(task.progress?.fetched)}，
+                          {tr('已写入')} {formatCount(task.progress?.written)}，
+                          {tr('已跳过（重复内容）')} {formatCount(task.progress?.skipped)}，
+                          {tr('失败')} {formatCount(task.progress?.failed)}
+                        </div>
+                        {logs.length > 0 && (
+                          <div className="offline-list" style={{ paddingLeft: '8px' }}>
+                            {logs.map((log, index) => (
+                              <div key={`${log.at || ''}-${index}`} className="offline-item">
+                                <div className="offline-meta">
+                                  {tr('时间')}: {formatTime(log.at)}
+                                </div>
+                                <div className="offline-meta">
+                                  {tr('批次')} {formatCount(log.page)}，
+                                  {tr('已获取')} {formatCount(log.fetched)}，
+                                  {tr('已写入')} {formatCount(log.written)}，
+                                  {tr('已跳过（重复内容）')} {formatCount(log.skipped)}，
+                                  {tr('失败')} {formatCount(log.failed)}
+                                </div>
+                                {log.note && (
+                                  <div className="offline-meta">
+                                    {tr('备注')}: {log.note}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className={`offline-status ${task.status || 'unknown'}`}>
-                        {formatStatus(task.status)}
-                      </div>
-                      <div className="offline-meta">
-                        {tr('已获取')} {formatCount(task.progress?.fetched)}，
-                        {tr('已写入')} {formatCount(task.progress?.written)}，
-                        {tr('已跳过（重复内容）')} {formatCount(task.progress?.skipped)}，
-                        {tr('失败')} {formatCount(task.progress?.failed)}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -467,35 +502,6 @@ export default function KeywordSection(props: KeywordSectionProps) {
               </div>
             )}
 
-            <div className="offline-card">
-              <div className="offline-title">{tr('发送记录')}</div>
-              {keywordOfflineLogs.length === 0 && (
-                <div className="offline-muted">{tr('暂无发送记录')}</div>
-              )}
-              {keywordOfflineLogs.length > 0 && (
-                <div className="offline-list">
-                  {keywordOfflineLogs.slice(-5).map((log, index) => (
-                    <div key={`${log.at || ''}-${index}`} className="offline-item">
-                      <div className="offline-meta">
-                        {tr('时间')}: {formatTime(log.at)}
-                      </div>
-                      <div className="offline-meta">
-                        {tr('批次')} {formatCount(log.page)}，
-                        {tr('已获取')} {formatCount(log.fetched)}，
-                        {tr('已写入')} {formatCount(log.written)}，
-                        {tr('已跳过（重复内容）')} {formatCount(log.skipped)}，
-                        {tr('失败')} {formatCount(log.failed)}
-                      </div>
-                      {log.note && (
-                        <div className="offline-meta">
-                          {tr('备注')}: {log.note}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
