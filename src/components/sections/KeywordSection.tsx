@@ -9,16 +9,6 @@ interface OfflineTaskProgress {
   page?: number
 }
 
-interface OfflineTaskLog {
-  at?: string
-  page?: number
-  fetched?: number
-  written?: number
-  failed?: number
-  skipped?: number
-  note?: string
-}
-
 interface OfflineTaskSummary {
   id: string
   status?: 'queued' | 'running' | 'completed' | 'stopped'
@@ -61,7 +51,6 @@ interface KeywordSectionProps {
   keywordOfflineTasks: OfflineTaskSummary[]
   keywordOfflineActiveTask: OfflineTaskSummary | null
   keywordOfflineDetail: OfflineTaskDetail | null
-  keywordOfflineLogs: OfflineTaskLog[]
   keywordOfflineLoading: boolean
   keywordOfflineRunning: boolean
   keywordOfflineStopping: boolean
@@ -126,7 +115,6 @@ export default function KeywordSection(props: KeywordSectionProps) {
     keywordOfflineTasks,
     keywordOfflineActiveTask,
     keywordOfflineDetail,
-    keywordOfflineLogs,
     keywordOfflineLoading,
     keywordOfflineRunning,
     keywordOfflineStopping,
@@ -453,50 +441,22 @@ export default function KeywordSection(props: KeywordSectionProps) {
               )}
               {!keywordOfflineLoading && keywordOfflineTasks.length > 0 && (
                 <div className="offline-list offline-list-scroll">
-                  {keywordOfflineTasks.slice(0, 5).map((task) => {
-                    const activeTaskId = keywordOfflineDetail?.id || keywordOfflineActiveTask?.id
-                    const isActive = Boolean(activeTaskId && activeTaskId === task.id)
-                    const logs = isActive ? keywordOfflineLogs.slice(-5) : []
-                    return (
-                      <div key={task.id} className="offline-item">
-                        <div className="offline-title">
-                          {formatTaskTitle(task)}
-                        </div>
-                        <div className={`offline-status ${task.status || 'unknown'}`}>
-                          {formatStatus(task.status)}
-                        </div>
-                        <div className="offline-meta">
-                          {tr('已获取')} {formatCount(task.progress?.fetched)}，
-                          {tr('已写入')} {formatCount(task.progress?.written)}，
-                          {tr('已跳过（重复内容）')} {formatCount(task.progress?.skipped)}，
-                          {tr('失败')} {formatCount(task.progress?.failed)}
-                        </div>
-                        {logs.length > 0 && (
-                          <div className="offline-list" style={{ paddingLeft: '8px' }}>
-                            {logs.map((log, index) => (
-                              <div key={`${log.at || ''}-${index}`} className="offline-item">
-                                <div className="offline-meta">
-                                  {tr('时间')}: {formatTime(log.at)}
-                                </div>
-                                <div className="offline-meta">
-                                  {tr('批次')} {formatCount(log.page)}，
-                                  {tr('已获取')} {formatCount(log.fetched)}，
-                                  {tr('已写入')} {formatCount(log.written)}，
-                                  {tr('已跳过（重复内容）')} {formatCount(log.skipped)}，
-                                  {tr('失败')} {formatCount(log.failed)}
-                                </div>
-                                {log.note && (
-                                  <div className="offline-meta">
-                                    {tr('备注')}: {log.note}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                  {keywordOfflineTasks.slice(0, 5).map((task) => (
+                    <div key={task.id} className="offline-item">
+                      <div className="offline-title">
+                        {formatTaskTitle(task)}
                       </div>
-                    )
-                  })}
+                      <div className={`offline-status ${task.status || 'unknown'}`}>
+                        {formatStatus(task.status)}
+                      </div>
+                      <div className="offline-meta">
+                        {tr('已获取')} {formatCount(task.progress?.fetched)}，
+                        {tr('已写入')} {formatCount(task.progress?.written)}，
+                        {tr('已跳过（重复内容）')} {formatCount(task.progress?.skipped)}，
+                        {tr('失败')} {formatCount(task.progress?.failed)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

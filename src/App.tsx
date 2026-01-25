@@ -47,7 +47,6 @@ import {
   fetchKeywordVideos,
   fetchOfflineAuthorizationStatus,
   fetchOfflineTaskDetail,
-  fetchOfflineTaskLogs,
   fetchOfflineTasks,
   getApiBase,
   saveOfflineAuthorization,
@@ -90,16 +89,6 @@ interface OfflineTaskProgress {
   failed?: number
   skipped?: number
   page?: number
-}
-
-interface OfflineTaskLog {
-  at?: string
-  page?: number
-  fetched?: number
-  written?: number
-  failed?: number
-  skipped?: number
-  note?: string
 }
 
 interface OfflineTaskSummary {
@@ -482,7 +471,6 @@ function App() {
   const [keywordOfflineTasks, setKeywordOfflineTasks] = useState<OfflineTaskSummary[]>([])
   const [keywordOfflineLoading, setKeywordOfflineLoading] = useState(false)
   const [keywordOfflineDetail, setKeywordOfflineDetail] = useState<OfflineTaskDetail | null>(null)
-  const [keywordOfflineLogs, setKeywordOfflineLogs] = useState<OfflineTaskLog[]>([])
   const [keywordOfflineStopping, setKeywordOfflineStopping] = useState(false)
   const [keywordOfflineActiveTaskId, setKeywordOfflineActiveTaskId] = useState('')
   const keywordOfflineHadRunningRef = useRef(false)
@@ -868,23 +856,6 @@ function App() {
     }
   }, [fetchWithIdentity, userIdentity])
 
-  const loadKeywordOfflineTaskLogs = useCallback(async (taskId: string) => {
-    if (!userIdentity || !taskId) return
-    try {
-      const response = await fetchOfflineTaskLogs(taskId, fetchWithIdentity, {
-        timeout: TIMEOUT_CONFIG.QUOTA
-      })
-      if (!response.ok) {
-        return
-      }
-      const data = await response.json()
-      const logs = Array.isArray(data?.logs) ? data.logs : []
-      setKeywordOfflineLogs(logs)
-    } catch (error) {
-      console.error('读取任务记录失败:', error)
-    }
-  }, [fetchWithIdentity, userIdentity])
-
   useEffect(() => {
     if (!userIdentity) return
     loadOfflineAuthStatus()
@@ -907,12 +878,10 @@ function App() {
   useEffect(() => {
     if (!keywordOfflineActiveTaskId) {
       setKeywordOfflineDetail(null)
-      setKeywordOfflineLogs([])
       return
     }
     loadKeywordOfflineTaskDetail(keywordOfflineActiveTaskId)
-    loadKeywordOfflineTaskLogs(keywordOfflineActiveTaskId)
-  }, [keywordOfflineActiveTaskId, loadKeywordOfflineTaskDetail, loadKeywordOfflineTaskLogs])
+  }, [keywordOfflineActiveTaskId, loadKeywordOfflineTaskDetail])
 
   useEffect(() => {
     if (!userIdentity) return
@@ -928,10 +897,9 @@ function App() {
     if (activeSection !== 'keyword') return
     const timer = window.setInterval(() => {
       loadKeywordOfflineTaskDetail(keywordOfflineActiveTaskId)
-      loadKeywordOfflineTaskLogs(keywordOfflineActiveTaskId)
     }, 5000)
     return () => window.clearInterval(timer)
-  }, [activeSection, keywordOfflineActiveTaskId, loadKeywordOfflineTaskDetail, loadKeywordOfflineTaskLogs])
+  }, [activeSection, keywordOfflineActiveTaskId, loadKeywordOfflineTaskDetail])
 
   useEffect(() => {
     if (!userIdentity) return
@@ -1190,7 +1158,6 @@ function App() {
         setMessage(tr('后台任务已停止'))
         await loadKeywordOfflineTasks(true)
         await loadKeywordOfflineTaskDetail(runningOffline.id)
-        await loadKeywordOfflineTaskLogs(runningOffline.id)
         await refreshQuota()
       } catch (error) {
         console.error('停止后台任务失败:', error)
@@ -3060,7 +3027,6 @@ function App() {
           keywordOfflineTasks={keywordOfflineTasks}
           keywordOfflineActiveTask={keywordOfflineActiveTask}
           keywordOfflineDetail={keywordOfflineDetail}
-          keywordOfflineLogs={keywordOfflineLogs}
           keywordOfflineLoading={keywordOfflineLoading}
           keywordOfflineRunning={keywordOfflineRunning}
           keywordOfflineStopping={keywordOfflineStopping}
