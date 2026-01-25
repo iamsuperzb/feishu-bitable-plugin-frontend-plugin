@@ -419,6 +419,33 @@ export default function KeywordSection(props: KeywordSectionProps) {
         {(keywordRunMode === 'offline' || keywordOfflineTasks.length > 0) && (
           <div className="sub-section">
             <h3>{tr('后台任务进度')}</h3>
+            {(keywordOfflineDetail || keywordOfflineActiveTask) && (
+              <div className="offline-card">
+                <div className="offline-title">{tr('当前任务详情')}</div>
+                <div className="offline-meta">
+                  {tr('状态')}: {formatStatus(keywordOfflineDetail?.status || keywordOfflineActiveTask?.status)}
+                </div>
+                <div className="offline-meta">
+                  {tr('已获取')} {formatCount(keywordOfflineDetail?.progress?.fetched || keywordOfflineActiveTask?.progress?.fetched)}，
+                  {tr('已写入')} {formatCount(keywordOfflineDetail?.progress?.written || keywordOfflineActiveTask?.progress?.written)}，
+                  {tr('已跳过（重复内容）')} {formatCount(keywordOfflineDetail?.progress?.skipped || keywordOfflineActiveTask?.progress?.skipped)}，
+                  {tr('失败')} {formatCount(keywordOfflineDetail?.progress?.failed || keywordOfflineActiveTask?.progress?.failed)}
+                </div>
+                <div className="offline-meta">
+                  {tr('更新时间')}: {formatTime(keywordOfflineDetail?.updatedAt || keywordOfflineActiveTask?.updatedAt)}
+                </div>
+                {keywordOfflineDetail?.payload?.tableName && (
+                  <div className="offline-meta">
+                    {tr('写入表格')}: {keywordOfflineDetail.payload.tableName}
+                  </div>
+                )}
+                {keywordOfflineDetail?.stopReason && (
+                  <div className="offline-meta">
+                    {tr('停止原因')}: {keywordOfflineDetail.stopReason}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="offline-card">
               {keywordOfflineLoading && <div className="offline-muted">{tr('正在读取任务列表...')}</div>}
               {!keywordOfflineLoading && keywordOfflineTasks.length === 0 && (
@@ -473,35 +500,6 @@ export default function KeywordSection(props: KeywordSectionProps) {
                 </div>
               )}
             </div>
-
-            {(keywordOfflineDetail || keywordOfflineActiveTask) && (
-              <div className="offline-card">
-                <div className="offline-title">{tr('当前任务详情')}</div>
-                <div className="offline-meta">
-                  {tr('状态')}: {formatStatus(keywordOfflineDetail?.status || keywordOfflineActiveTask?.status)}
-                </div>
-                <div className="offline-meta">
-                  {tr('已获取')} {formatCount(keywordOfflineDetail?.progress?.fetched || keywordOfflineActiveTask?.progress?.fetched)}，
-                  {tr('已写入')} {formatCount(keywordOfflineDetail?.progress?.written || keywordOfflineActiveTask?.progress?.written)}，
-                  {tr('已跳过（重复内容）')} {formatCount(keywordOfflineDetail?.progress?.skipped || keywordOfflineActiveTask?.progress?.skipped)}，
-                  {tr('失败')} {formatCount(keywordOfflineDetail?.progress?.failed || keywordOfflineActiveTask?.progress?.failed)}
-                </div>
-                <div className="offline-meta">
-                  {tr('更新时间')}: {formatTime(keywordOfflineDetail?.updatedAt || keywordOfflineActiveTask?.updatedAt)}
-                </div>
-                {keywordOfflineDetail?.payload?.tableName && (
-                  <div className="offline-meta">
-                    {tr('写入表格')}: {keywordOfflineDetail.payload.tableName}
-                  </div>
-                )}
-                {keywordOfflineDetail?.stopReason && (
-                  <div className="offline-meta">
-                    {tr('停止原因')}: {keywordOfflineDetail.stopReason}
-                  </div>
-                )}
-              </div>
-            )}
-
           </div>
         )}
       </div>
