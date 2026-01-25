@@ -620,6 +620,12 @@ button:disabled {
   gap: 8px;
 }
 
+.offline-list-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .offline-item {
   display: flex;
   flex-direction: column;

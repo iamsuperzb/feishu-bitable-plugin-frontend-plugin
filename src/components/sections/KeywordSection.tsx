@@ -425,7 +425,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
                 <div className="offline-muted">{tr('暂无后台任务')}</div>
               )}
               {!keywordOfflineLoading && keywordOfflineTasks.length > 0 && (
-                <div className="offline-list">
+                <div className="offline-list offline-list-scroll">
                   {keywordOfflineTasks.slice(0, 5).map((task) => {
                     const activeTaskId = keywordOfflineDetail?.id || keywordOfflineActiveTask?.id
                     const isActive = Boolean(activeTaskId && activeTaskId === task.id)
