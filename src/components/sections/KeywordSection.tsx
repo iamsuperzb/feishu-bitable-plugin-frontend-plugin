@@ -51,7 +51,6 @@ interface KeywordSectionProps {
   keywordOfflineTasks: OfflineTaskSummary[]
   keywordOfflineActiveTask: OfflineTaskSummary | null
   keywordOfflineDetail: OfflineTaskDetail | null
-  keywordOfflineLoading: boolean
   keywordOfflineRunning: boolean
   keywordOfflineStopping: boolean
   setQuery: (val: string) => void
@@ -115,7 +114,6 @@ export default function KeywordSection(props: KeywordSectionProps) {
     keywordOfflineTasks,
     keywordOfflineActiveTask,
     keywordOfflineDetail,
-    keywordOfflineLoading,
     keywordOfflineRunning,
     keywordOfflineStopping,
     setQuery,
@@ -160,12 +158,6 @@ export default function KeywordSection(props: KeywordSectionProps) {
   const formatCount = (value?: number) => (
     typeof value === 'number' ? value : 0
   )
-
-  const formatTaskTitle = (task: OfflineTaskSummary) => {
-    const parts = [task.keyword, task.tableName].filter(Boolean)
-    if (parts.length > 0) return parts.join('｜')
-    return tr('任务')
-  }
 
   return (
     <div className="section">
@@ -434,32 +426,6 @@ export default function KeywordSection(props: KeywordSectionProps) {
                 )}
               </div>
             )}
-            <div className="offline-card">
-              {keywordOfflineLoading && <div className="offline-muted">{tr('正在读取任务列表...')}</div>}
-              {!keywordOfflineLoading && keywordOfflineTasks.length === 0 && (
-                <div className="offline-muted">{tr('暂无后台任务')}</div>
-              )}
-              {!keywordOfflineLoading && keywordOfflineTasks.length > 0 && (
-                <div className="offline-list offline-list-scroll">
-                  {keywordOfflineTasks.slice(0, 5).map((task) => (
-                    <div key={task.id} className="offline-item">
-                      <div className="offline-title">
-                        {formatTaskTitle(task)}
-                      </div>
-                      <div className={`offline-status ${task.status || 'unknown'}`}>
-                        {formatStatus(task.status)}
-                      </div>
-                      <div className="offline-meta">
-                        {tr('已获取')} {formatCount(task.progress?.fetched)}，
-                        {tr('已写入')} {formatCount(task.progress?.written)}，
-                        {tr('已跳过（重复内容）')} {formatCount(task.progress?.skipped)}，
-                        {tr('失败')} {formatCount(task.progress?.failed)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>

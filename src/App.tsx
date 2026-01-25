@@ -12,6 +12,7 @@ import KeywordSection from './components/sections/KeywordSection'
 import AccountSection from './components/sections/AccountSection'
 import AccountInfoSection from './components/sections/AccountInfoSection'
 import AudioSection from './components/sections/AudioSection'
+import OfflineTaskCenterSection from './components/sections/OfflineTaskCenterSection'
 import { useTheme } from './hooks/useTheme'
 import { useUIState } from './hooks/useUIState'
 import { useQuota } from './hooks/useQuota'
@@ -473,6 +474,7 @@ function App() {
   const [keywordOfflineDetail, setKeywordOfflineDetail] = useState<OfflineTaskDetail | null>(null)
   const [keywordOfflineStopping, setKeywordOfflineStopping] = useState(false)
   const [keywordOfflineActiveTaskId, setKeywordOfflineActiveTaskId] = useState('')
+  const [offlineCenterOpen, setOfflineCenterOpen] = useState(true)
   const keywordOfflineHadRunningRef = useRef(false)
 
   // 账号视频搜索相关状态
@@ -885,12 +887,13 @@ function App() {
 
   useEffect(() => {
     if (!userIdentity) return
-    if (activeSection !== 'keyword') return
+    const shouldPoll = activeSection === 'keyword' || offlineCenterOpen
+    if (!shouldPoll) return
     const timer = window.setInterval(() => {
       loadKeywordOfflineTasks()
     }, 5000)
     return () => window.clearInterval(timer)
-  }, [activeSection, loadKeywordOfflineTasks, userIdentity])
+  }, [activeSection, loadKeywordOfflineTasks, offlineCenterOpen, userIdentity])
 
   useEffect(() => {
     if (!keywordOfflineActiveTaskId) return
@@ -2703,6 +2706,7 @@ function App() {
     () => keywordOfflineTasks.find(task => task.id === keywordOfflineActiveTaskId) || null,
     [keywordOfflineActiveTaskId, keywordOfflineTasks]
   )
+  const offlineCenterTasks = useMemo(() => keywordOfflineTasks, [keywordOfflineTasks])
   const keywordOfflineAuthStatus = keywordOfflineAuthLoaded
     ? (keywordOfflineHasAuth ? 'ready' : 'missing')
     : 'loading'
@@ -3027,7 +3031,6 @@ function App() {
           keywordOfflineTasks={keywordOfflineTasks}
           keywordOfflineActiveTask={keywordOfflineActiveTask}
           keywordOfflineDetail={keywordOfflineDetail}
-          keywordOfflineLoading={keywordOfflineLoading}
           keywordOfflineRunning={keywordOfflineRunning}
           keywordOfflineStopping={keywordOfflineStopping}
           setQuery={setQuery}
@@ -3119,6 +3122,14 @@ function App() {
           audioQuotaInsufficient={audioQuotaInsufficient}
           handleAudioExtract={handleAudioExtract}
           handleAudioStop={stopAudioExtraction}
+        />
+
+        <OfflineTaskCenterSection
+          tr={tr}
+          open={offlineCenterOpen}
+          onToggle={() => setOfflineCenterOpen(prev => !prev)}
+          tasks={offlineCenterTasks}
+          loading={keywordOfflineLoading}
         />
 
         {/* 处理状态板块 - 固定在底部 */}
