@@ -484,6 +484,7 @@ function App() {
   const [keywordOfflineLogs, setKeywordOfflineLogs] = useState<OfflineTaskLog[]>([])
   const [keywordOfflineStopping, setKeywordOfflineStopping] = useState(false)
   const [keywordOfflineActiveTaskId, setKeywordOfflineActiveTaskId] = useState('')
+  const keywordOfflineHadRunningRef = useRef(false)
 
   // 账号视频搜索相关状态
   const [username, setUsername] = useState('')
@@ -931,6 +932,33 @@ function App() {
     return () => window.clearInterval(timer)
   }, [activeSection, keywordOfflineActiveTaskId, loadKeywordOfflineTaskDetail, loadKeywordOfflineTaskLogs])
 
+  useEffect(() => {
+    if (!userIdentity) return
+    if (activeSection !== 'keyword') return
+    const hasRunning = keywordOfflineTasks.some(
+      task => task.status === 'running' || task.status === 'queued'
+    )
+    if (!hasRunning) return
+    const timer = window.setInterval(() => {
+      refreshQuota()
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [activeSection, keywordOfflineTasks, refreshQuota, userIdentity])
+
+  useEffect(() => {
+    const hasRunning = keywordOfflineTasks.some(
+      task => task.status === 'running' || task.status === 'queued'
+    )
+    if (hasRunning) {
+      keywordOfflineHadRunningRef.current = true
+      return
+    }
+    if (keywordOfflineHadRunningRef.current) {
+      keywordOfflineHadRunningRef.current = false
+      refreshQuota()
+    }
+  }, [keywordOfflineTasks, refreshQuota])
+
   const quotaDetailsRef = useRef<HTMLDivElement>(null)
   const quotaDetailsHeightRef = useRef(0)
   const [quotaDetailsHeight, setQuotaDetailsHeight] = useState(0)
@@ -1162,6 +1190,7 @@ function App() {
         await loadKeywordOfflineTasks(true)
         await loadKeywordOfflineTaskDetail(runningOffline.id)
         await loadKeywordOfflineTaskLogs(runningOffline.id)
+        await refreshQuota()
       } catch (error) {
         console.error('停止后台任务失败:', error)
         setMessage(tr('停止失败，请稍后重试'))
