@@ -186,6 +186,12 @@ export default function AudioSection(props: AudioSectionProps) {
                   disabled={audioLoading || audioOfflineRunning}
                 />
                 {tr('立即执行')}
+                <span className="help-tip">
+                  <span className="help-icon">?</span>
+                  <span className="help-bubble">
+                    {tr('立即执行：页面需要保持打开，关闭页面或关闭插件会停止运行')}
+                  </span>
+                </span>
               </label>
               <label className="radio-label">
                 <input
@@ -197,6 +203,12 @@ export default function AudioSection(props: AudioSectionProps) {
                   disabled={audioLoading}
                 />
                 {tr('后台执行')}
+                <span className="help-tip">
+                  <span className="help-icon">?</span>
+                  <span className="help-bubble">
+                    {tr('后台执行：关闭页面或关闭插件也会继续运行')}
+                  </span>
+                </span>
               </label>
             </div>
           </div>

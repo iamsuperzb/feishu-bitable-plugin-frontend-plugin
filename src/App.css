@@ -732,6 +732,59 @@ button:disabled {
   accent-color: #1677ff;
 }
 
+.help-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.help-icon {
+  margin-left: 4px;
+  width: 14px;
+  height: 14px;
+  font-size: 10px;
+  line-height: 1;
+  border: 1px solid #c4c4c4;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  background: #fff;
+  transform: translateY(-4px);
+}
+
+.help-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  max-width: 240px;
+  padding: 6px 8px;
+  background: #1f2329;
+  color: #fff;
+  font-size: 12px;
+  border-radius: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: all 0.2s ease;
+  z-index: 10;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.help-tip:hover .help-bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.app.dark .help-icon {
+  border-color: #434343;
+  color: #cfcfcf;
+  background: #2f2f2f;
+}
+
 /* 文本域样式 */
 .textarea-styled {
   width: 100%;
