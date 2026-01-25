@@ -23,6 +23,14 @@ interface OfflineTaskCenterSectionProps {
   onToggle: () => void
   tasks: OfflineTaskSummary[]
   loading: boolean
+  baseId: string
+  onBaseIdChange: (value: string) => void
+  authTokenInput: string
+  onAuthTokenInputChange: (value: string) => void
+  authStatus: 'loading' | 'missing' | 'ready'
+  authSaving: boolean
+  onSaveAuth: () => void
+  settingsLocked?: boolean
 }
 
 const formatStatusText = (tr: OfflineTaskCenterSectionProps['tr'], status?: string) => {
@@ -54,7 +62,21 @@ const formatCount = (value?: number) => (
 )
 
 export default function OfflineTaskCenterSection(props: OfflineTaskCenterSectionProps) {
-  const { tr, open, onToggle, tasks, loading } = props
+  const {
+    tr,
+    open,
+    onToggle,
+    tasks,
+    loading,
+    baseId,
+    onBaseIdChange,
+    authTokenInput,
+    onAuthTokenInputChange,
+    authStatus,
+    authSaving,
+    onSaveAuth,
+    settingsLocked
+  } = props
 
   return (
     <div className="section">
@@ -64,6 +86,45 @@ export default function OfflineTaskCenterSection(props: OfflineTaskCenterSection
       </div>
 
       <div className={`section-content ${open ? 'open' : 'collapsed'}`}>
+        <div className="offline-card">
+          <div className="offline-title">{tr('后台任务设置')}</div>
+          <div className="form-item full-width">
+            <label>{tr('表格编号:')}</label>
+            <input
+              type="text"
+              value={baseId}
+              onChange={(event) => onBaseIdChange(event.target.value)}
+              placeholder={tr('请填写表格编号')}
+              disabled={settingsLocked}
+            />
+          </div>
+          <div className="form-item full-width">
+            <label>{tr('授权码:')}</label>
+            <div className="redeem-form">
+              <input
+                type="text"
+                className="redeem-input"
+                value={authTokenInput}
+                onChange={(event) => onAuthTokenInputChange(event.target.value)}
+                placeholder={tr('请填写授权码')}
+                disabled={authSaving || settingsLocked}
+              />
+              <button
+                type="button"
+                className="redeem-open-btn"
+                onClick={onSaveAuth}
+                disabled={authSaving || !authTokenInput.trim()}
+              >
+                {authSaving ? tr('保存中...') : tr('保存')}
+              </button>
+            </div>
+            <div className={`offline-auth-tip ${authStatus}`}>
+              {authStatus === 'ready' && tr('已保存授权，可直接后台执行')}
+              {authStatus === 'missing' && tr('未授权，后台任务无法开始')}
+              {authStatus === 'loading' && tr('正在读取授权状态')}
+            </div>
+          </div>
+        </div>
         <div className="offline-card">
           {loading && <div className="offline-muted">{tr('正在读取任务列表...')}</div>}
           {!loading && tasks.length === 0 && (

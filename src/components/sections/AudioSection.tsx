@@ -35,9 +35,7 @@ interface AudioSectionProps {
   fields: IFieldMeta[]
   audioRunMode: AudioRunMode
   audioBaseId: string
-  audioOfflineAuthTokenInput: string
   audioOfflineAuthStatus: 'ready' | 'missing' | 'loading'
-  audioOfflineAuthSaving: boolean
   audioOfflineTasks: OfflineTaskSummary[]
   audioOfflineActiveTask: OfflineTaskSummary | null
   audioOfflineDetail: OfflineTaskDetail | null
@@ -60,9 +58,6 @@ interface AudioSectionProps {
   handleAudioExtract: () => void
   handleAudioStop: () => void
   setAudioRunMode: (val: AudioRunMode) => void
-  setAudioBaseId: (val: string) => void
-  setAudioOfflineAuthTokenInput: (val: string) => void
-  saveAudioOfflineAuthToken: () => void
 }
 
 export default function AudioSection(props: AudioSectionProps) {
@@ -73,9 +68,7 @@ export default function AudioSection(props: AudioSectionProps) {
     fields,
     audioRunMode,
     audioBaseId,
-    audioOfflineAuthTokenInput,
     audioOfflineAuthStatus,
-    audioOfflineAuthSaving,
     audioOfflineTasks,
     audioOfflineActiveTask,
     audioOfflineDetail,
@@ -97,10 +90,7 @@ export default function AudioSection(props: AudioSectionProps) {
     audioQuotaInsufficient,
     handleAudioExtract,
     handleAudioStop,
-    setAudioRunMode,
-    setAudioBaseId,
-    setAudioOfflineAuthTokenInput,
-    saveAudioOfflineAuthToken
+    setAudioRunMode
   } = props
 
   const allowStart = !audioLoading && !audioOfflineRunning
@@ -304,45 +294,9 @@ export default function AudioSection(props: AudioSectionProps) {
           )}
         </div>
 
-        {audioRunMode === 'offline' && (
-          <div className="sub-section">
-            <h3>{tr('后台任务设置')}</h3>
-            <div className="form-item full-width">
-              <label>{tr('表格编号:')}</label>
-              <input
-                type="text"
-                value={audioBaseId}
-                onChange={(e) => setAudioBaseId(e.target.value)}
-                placeholder={tr('请填写表格编号')}
-                disabled={audioOfflineRunning}
-              />
-            </div>
-            <div className="form-item full-width">
-              <label>{tr('授权码:')}</label>
-              <div className="redeem-form">
-                <input
-                  type="text"
-                  className="redeem-input"
-                  value={audioOfflineAuthTokenInput}
-                  onChange={(e) => setAudioOfflineAuthTokenInput(e.target.value)}
-                  placeholder={tr('请填写授权码')}
-                  disabled={audioOfflineAuthSaving || audioOfflineRunning}
-                />
-                <button
-                  type="button"
-                  className="redeem-open-btn"
-                  onClick={saveAudioOfflineAuthToken}
-                  disabled={audioOfflineAuthSaving || !audioOfflineAuthTokenInput.trim()}
-                >
-                  {audioOfflineAuthSaving ? tr('保存中...') : tr('保存')}
-                </button>
-              </div>
-              <div className={`offline-auth-tip ${audioOfflineAuthStatus}`}>
-                {audioOfflineAuthStatus === 'ready' && tr('已保存授权，可直接后台执行')}
-                {audioOfflineAuthStatus === 'missing' && tr('未授权，后台任务无法开始')}
-                {audioOfflineAuthStatus === 'loading' && tr('正在读取授权状态')}
-              </div>
-            </div>
+        {audioRunMode === 'offline' && offlineBlocked && (
+          <div className="offline-auth-tip missing">
+            {tr('请先在后台任务中心填写表格编号和授权码')}
           </div>
         )}
 

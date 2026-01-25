@@ -941,6 +941,7 @@ function App() {
   const accountOfflineRunning = Boolean(accountOfflineRunningTask)
   const accountInfoOfflineRunning = Boolean(accountInfoOfflineRunningTask)
   const audioOfflineRunning = Boolean(audioOfflineRunningTask)
+  const offlineAnyRunning = keywordOfflineRunning || accountOfflineRunning || accountInfoOfflineRunning || audioOfflineRunning
 
   const keywordOfflineActiveTask = useMemo(
     () => keywordOfflineTaskList.find(task => task.id === keywordOfflineActiveTaskId) || null,
@@ -3623,9 +3624,7 @@ function App() {
           keywordQuotaInsufficient={keywordQuotaInsufficient}
           keywordSelectedFields={keywordSelectedFields}
           keywordRequiredFields={KEYWORD_REQUIRED_FIELDS}
-          keywordOfflineAuthTokenInput={keywordOfflineAuthTokenInput}
           keywordOfflineAuthStatus={keywordOfflineAuthStatus}
-          keywordOfflineAuthSaving={keywordOfflineAuthSaving}
           keywordOfflineTasks={keywordOfflineTaskList}
           keywordOfflineActiveTask={keywordOfflineActiveTask}
           keywordOfflineDetail={keywordOfflineDetail}
@@ -3635,12 +3634,9 @@ function App() {
           setVtime={setVtime}
           setRegion={setRegion}
           setKeywordRunMode={setKeywordRunMode}
-          setKeywordBaseId={setKeywordBaseId}
           setKeywordTargetTable={setKeywordTargetTable}
           setKeywordNewTableName={handleKeywordNewTableNameChange}
           handleKeywordFieldChange={handleKeywordFieldChange}
-          setKeywordOfflineAuthTokenInput={setKeywordOfflineAuthTokenInput}
-          saveKeywordOfflineAuthToken={handleSaveOfflineAuthToken}
           writeKeywordTikTokData={writeKeywordTikTokData}
           stopCollection={stopKeywordCollection}
         />
@@ -3656,9 +3652,7 @@ function App() {
           userRegion={userRegion}
           accountRunMode={accountRunMode}
           accountBaseId={keywordBaseId}
-          accountOfflineAuthTokenInput={keywordOfflineAuthTokenInput}
           accountOfflineAuthStatus={keywordOfflineAuthStatus}
-          accountOfflineAuthSaving={keywordOfflineAuthSaving}
           accountOfflineTasks={accountOfflineTaskList}
           accountOfflineActiveTask={accountOfflineActiveTask}
           accountOfflineDetail={accountOfflineDetail}
@@ -3673,9 +3667,6 @@ function App() {
           setUsername={setUsername}
           setUserRegion={setUserRegion}
           setAccountRunMode={setAccountRunMode}
-          setAccountBaseId={setKeywordBaseId}
-          setAccountOfflineAuthTokenInput={setKeywordOfflineAuthTokenInput}
-          saveAccountOfflineAuthToken={handleSaveOfflineAuthToken}
           setAccountTargetTable={setAccountTargetTable}
           setAccountNewTableName={handleAccountNewTableNameChange}
           handleAccountFieldChange={handleAccountFieldChange}
@@ -3690,9 +3681,7 @@ function App() {
           fields={fields}
           accountInfoRunMode={accountInfoRunMode}
           accountInfoBaseId={keywordBaseId}
-          accountInfoOfflineAuthTokenInput={keywordOfflineAuthTokenInput}
           accountInfoOfflineAuthStatus={keywordOfflineAuthStatus}
-          accountInfoOfflineAuthSaving={keywordOfflineAuthSaving}
           accountInfoOfflineTasks={accountInfoOfflineTaskList}
           accountInfoOfflineActiveTask={accountInfoOfflineActiveTask}
           accountInfoOfflineDetail={accountInfoOfflineDetail}
@@ -3722,9 +3711,6 @@ function App() {
           handleAccountInfoFetch={handleAccountInfoFetch}
           handleAccountInfoStop={handleAccountInfoStop}
           setAccountInfoRunMode={setAccountInfoRunMode}
-          setAccountInfoBaseId={setKeywordBaseId}
-          setAccountInfoOfflineAuthTokenInput={setKeywordOfflineAuthTokenInput}
-          saveAccountInfoOfflineAuthToken={handleSaveOfflineAuthToken}
         />
 
         <AudioSection
@@ -3734,9 +3720,7 @@ function App() {
           fields={fields}
           audioRunMode={audioRunMode}
           audioBaseId={keywordBaseId}
-          audioOfflineAuthTokenInput={keywordOfflineAuthTokenInput}
           audioOfflineAuthStatus={keywordOfflineAuthStatus}
-          audioOfflineAuthSaving={keywordOfflineAuthSaving}
           audioOfflineTasks={audioOfflineTaskList}
           audioOfflineActiveTask={audioOfflineActiveTask}
           audioOfflineDetail={audioOfflineDetail}
@@ -3759,9 +3743,6 @@ function App() {
           handleAudioExtract={handleAudioExtract}
           handleAudioStop={stopAudioExtraction}
           setAudioRunMode={setAudioRunMode}
-          setAudioBaseId={setKeywordBaseId}
-          setAudioOfflineAuthTokenInput={setKeywordOfflineAuthTokenInput}
-          saveAudioOfflineAuthToken={handleSaveOfflineAuthToken}
         />
 
         <OfflineTaskCenterSection
@@ -3770,6 +3751,14 @@ function App() {
           onToggle={() => setOfflineCenterOpen(prev => !prev)}
           tasks={offlineCenterTasks}
           loading={keywordOfflineLoading}
+          baseId={keywordBaseId}
+          onBaseIdChange={setKeywordBaseId}
+          authTokenInput={keywordOfflineAuthTokenInput}
+          onAuthTokenInputChange={setKeywordOfflineAuthTokenInput}
+          authStatus={keywordOfflineAuthStatus}
+          authSaving={keywordOfflineAuthSaving}
+          onSaveAuth={handleSaveOfflineAuthToken}
+          settingsLocked={offlineAnyRunning}
         />
 
         {/* 处理状态板块 - 固定在底部 */}

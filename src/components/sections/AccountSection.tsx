@@ -37,9 +37,7 @@ interface AccountSectionProps {
   userRegion: string
   accountRunMode: AccountRunMode
   accountBaseId: string
-  accountOfflineAuthTokenInput: string
   accountOfflineAuthStatus: 'ready' | 'missing' | 'loading'
-  accountOfflineAuthSaving: boolean
   accountOfflineTasks: OfflineTaskSummary[]
   accountOfflineActiveTask: OfflineTaskSummary | null
   accountOfflineDetail: OfflineTaskDetail | null
@@ -54,9 +52,6 @@ interface AccountSectionProps {
   setUsername: (val: string) => void
   setUserRegion: (val: string) => void
   setAccountRunMode: (val: AccountRunMode) => void
-  setAccountBaseId: (val: string) => void
-  setAccountOfflineAuthTokenInput: (val: string) => void
-  saveAccountOfflineAuthToken: () => void
   setAccountTargetTable: (val: TableTarget) => void
   setAccountNewTableName: (val: string) => void
   handleAccountFieldChange: (fieldName: string) => void
@@ -99,9 +94,7 @@ export default function AccountSection(props: AccountSectionProps) {
     userRegion,
     accountRunMode,
     accountBaseId,
-    accountOfflineAuthTokenInput,
     accountOfflineAuthStatus,
-    accountOfflineAuthSaving,
     accountOfflineTasks,
     accountOfflineActiveTask,
     accountOfflineDetail,
@@ -116,9 +109,6 @@ export default function AccountSection(props: AccountSectionProps) {
     setUsername,
     setUserRegion,
     setAccountRunMode,
-    setAccountBaseId,
-    setAccountOfflineAuthTokenInput,
-    saveAccountOfflineAuthToken,
     setAccountTargetTable,
     setAccountNewTableName,
     handleAccountFieldChange,
@@ -276,45 +266,9 @@ export default function AccountSection(props: AccountSectionProps) {
           )}
         </div>
 
-        {accountRunMode === 'offline' && (
-          <div className="sub-section">
-            <h3>{tr('后台任务设置')}</h3>
-            <div className="form-item full-width">
-              <label>{tr('表格编号:')}</label>
-              <input
-                type="text"
-                value={accountBaseId}
-                onChange={(e) => setAccountBaseId(e.target.value)}
-                placeholder={tr('请填写表格编号')}
-                disabled={accountOfflineRunning}
-              />
-            </div>
-            <div className="form-item full-width">
-              <label>{tr('授权码:')}</label>
-              <div className="redeem-form">
-                <input
-                  type="text"
-                  className="redeem-input"
-                  value={accountOfflineAuthTokenInput}
-                  onChange={(e) => setAccountOfflineAuthTokenInput(e.target.value)}
-                  placeholder={tr('请填写授权码')}
-                  disabled={accountOfflineAuthSaving || accountOfflineRunning}
-                />
-                <button
-                  type="button"
-                  className="redeem-open-btn"
-                  onClick={saveAccountOfflineAuthToken}
-                  disabled={accountOfflineAuthSaving || !accountOfflineAuthTokenInput.trim()}
-                >
-                  {accountOfflineAuthSaving ? tr('保存中...') : tr('保存')}
-                </button>
-              </div>
-              <div className={`offline-auth-tip ${accountOfflineAuthStatus}`}>
-                {accountOfflineAuthStatus === 'ready' && tr('已保存授权，可直接后台执行')}
-                {accountOfflineAuthStatus === 'missing' && tr('未授权，后台任务无法开始')}
-                {accountOfflineAuthStatus === 'loading' && tr('正在读取授权状态')}
-              </div>
-            </div>
+        {accountRunMode === 'offline' && offlineBlocked && (
+          <div className="offline-auth-tip missing">
+            {tr('请先在后台任务中心填写表格编号和授权码')}
           </div>
         )}
 

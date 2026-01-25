@@ -45,9 +45,7 @@ interface KeywordSectionProps {
   keywordQuotaInsufficient: boolean
   keywordSelectedFields: Record<string, boolean>
   keywordRequiredFields: Set<string>
-  keywordOfflineAuthTokenInput: string
   keywordOfflineAuthStatus: 'loading' | 'missing' | 'ready'
-  keywordOfflineAuthSaving: boolean
   keywordOfflineTasks: OfflineTaskSummary[]
   keywordOfflineActiveTask: OfflineTaskSummary | null
   keywordOfflineDetail: OfflineTaskDetail | null
@@ -57,12 +55,9 @@ interface KeywordSectionProps {
   setVtime: (val: string) => void
   setRegion: (val: string) => void
   setKeywordRunMode: (val: KeywordRunMode) => void
-  setKeywordBaseId: (val: string) => void
   setKeywordTargetTable: (val: TableTarget) => void
   setKeywordNewTableName: (val: string) => void
   handleKeywordFieldChange: (fieldName: string) => void
-  setKeywordOfflineAuthTokenInput: (val: string) => void
-  saveKeywordOfflineAuthToken: () => void
   writeKeywordTikTokData: () => void
   stopCollection: () => void
 }
@@ -108,9 +103,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
     keywordQuotaInsufficient,
     keywordSelectedFields,
     keywordRequiredFields,
-    keywordOfflineAuthTokenInput,
     keywordOfflineAuthStatus,
-    keywordOfflineAuthSaving,
     keywordOfflineTasks,
     keywordOfflineActiveTask,
     keywordOfflineDetail,
@@ -120,12 +113,9 @@ export default function KeywordSection(props: KeywordSectionProps) {
     setVtime,
     setRegion,
     setKeywordRunMode,
-    setKeywordBaseId,
     setKeywordTargetTable,
     setKeywordNewTableName,
     handleKeywordFieldChange,
-    setKeywordOfflineAuthTokenInput,
-    saveKeywordOfflineAuthToken,
     writeKeywordTikTokData,
     stopCollection
   } = props
@@ -295,45 +285,9 @@ export default function KeywordSection(props: KeywordSectionProps) {
           )}
         </div>
 
-        {keywordRunMode === 'offline' && (
-          <div className="sub-section">
-            <h3>{tr('后台任务设置')}</h3>
-            <div className="form-item full-width">
-              <label>{tr('表格编号:')}</label>
-              <input
-                type="text"
-                value={keywordBaseId}
-                onChange={(e) => setKeywordBaseId(e.target.value)}
-                placeholder={tr('请填写表格编号')}
-                disabled={keywordOfflineRunning}
-              />
-            </div>
-            <div className="form-item full-width">
-              <label>{tr('授权码:')}</label>
-              <div className="redeem-form">
-                <input
-                  type="text"
-                  className="redeem-input"
-                  value={keywordOfflineAuthTokenInput}
-                  onChange={(e) => setKeywordOfflineAuthTokenInput(e.target.value)}
-                  placeholder={tr('请填写授权码')}
-                  disabled={keywordOfflineAuthSaving || keywordOfflineRunning}
-                />
-                <button
-                  type="button"
-                  className="redeem-open-btn"
-                  onClick={saveKeywordOfflineAuthToken}
-                  disabled={keywordOfflineAuthSaving || !keywordOfflineAuthTokenInput.trim()}
-                >
-                  {keywordOfflineAuthSaving ? tr('保存中...') : tr('保存')}
-                </button>
-              </div>
-              <div className={`offline-auth-tip ${keywordOfflineAuthStatus}`}>
-                {keywordOfflineAuthStatus === 'ready' && tr('已保存授权，可直接后台执行')}
-                {keywordOfflineAuthStatus === 'missing' && tr('未授权，后台任务无法开始')}
-                {keywordOfflineAuthStatus === 'loading' && tr('正在读取授权状态')}
-              </div>
-            </div>
+        {keywordRunMode === 'offline' && offlineBlocked && (
+          <div className="offline-auth-tip missing">
+            {tr('请先在后台任务中心填写表格编号和授权码')}
           </div>
         )}
 
