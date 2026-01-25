@@ -5,6 +5,7 @@ interface OfflineTaskProgress {
   fetched?: number
   written?: number
   failed?: number
+  skipped?: number
   page?: number
 }
 
@@ -14,6 +15,7 @@ interface OfflineTaskLog {
   fetched?: number
   written?: number
   failed?: number
+  skipped?: number
   note?: string
 }
 
@@ -426,7 +428,10 @@ export default function KeywordSection(props: KeywordSectionProps) {
                         {formatStatus(task.status)}
                       </div>
                       <div className="offline-meta">
-                        {tr('已获取')} {formatCount(task.progress?.fetched)}，{tr('已写入')} {formatCount(task.progress?.written)}，{tr('失败')} {formatCount(task.progress?.failed)}
+                        {tr('已获取')} {formatCount(task.progress?.fetched)}，
+                        {tr('已写入')} {formatCount(task.progress?.written)}，
+                        {tr('已跳过（重复内容）')} {formatCount(task.progress?.skipped)}，
+                        {tr('失败')} {formatCount(task.progress?.failed)}
                       </div>
                     </div>
                   ))}
@@ -443,6 +448,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
                 <div className="offline-meta">
                   {tr('已获取')} {formatCount(keywordOfflineDetail?.progress?.fetched || keywordOfflineActiveTask?.progress?.fetched)}，
                   {tr('已写入')} {formatCount(keywordOfflineDetail?.progress?.written || keywordOfflineActiveTask?.progress?.written)}，
+                  {tr('已跳过（重复内容）')} {formatCount(keywordOfflineDetail?.progress?.skipped || keywordOfflineActiveTask?.progress?.skipped)}，
                   {tr('失败')} {formatCount(keywordOfflineDetail?.progress?.failed || keywordOfflineActiveTask?.progress?.failed)}
                 </div>
                 <div className="offline-meta">
@@ -474,7 +480,11 @@ export default function KeywordSection(props: KeywordSectionProps) {
                         {tr('时间')}: {formatTime(log.at)}
                       </div>
                       <div className="offline-meta">
-                        {tr('批次')} {formatCount(log.page)}，{tr('已获取')} {formatCount(log.fetched)}，{tr('已写入')} {formatCount(log.written)}，{tr('失败')} {formatCount(log.failed)}
+                        {tr('批次')} {formatCount(log.page)}，
+                        {tr('已获取')} {formatCount(log.fetched)}，
+                        {tr('已写入')} {formatCount(log.written)}，
+                        {tr('已跳过（重复内容）')} {formatCount(log.skipped)}，
+                        {tr('失败')} {formatCount(log.failed)}
                       </div>
                       {log.note && (
                         <div className="offline-meta">

@@ -88,6 +88,7 @@ interface OfflineTaskProgress {
   fetched?: number
   written?: number
   failed?: number
+  skipped?: number
   page?: number
 }
 
@@ -97,6 +98,7 @@ interface OfflineTaskLog {
   fetched?: number
   written?: number
   failed?: number
+  skipped?: number
   note?: string
 }
 
