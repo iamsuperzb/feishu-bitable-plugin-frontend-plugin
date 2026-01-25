@@ -739,38 +739,44 @@ button:disabled {
 }
 
 .help-icon {
-  margin-left: 4px;
-  width: 14px;
-  height: 14px;
+  margin-left: 6px;
+  width: 12px;
+  height: 12px;
   font-size: 10px;
   line-height: 1;
-  border: 1px solid #c4c4c4;
+  border: 1px solid #d9d9d9;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #666;
-  background: #fff;
-  transform: translateY(-4px);
+  color: #8c8c8c;
+  background: transparent;
+  transform: translateY(-2px);
 }
 
 .help-bubble {
   position: absolute;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 6px);
   right: 0;
-  max-width: 240px;
-  padding: 6px 8px;
-  background: #1f2329;
-  color: #fff;
+  width: 240px;
+  max-width: 260px;
+  padding: 8px 10px;
+  background: #ffffff;
+  color: #1f2329;
   font-size: 12px;
-  border-radius: 6px;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   opacity: 0;
   visibility: hidden;
   transform: translateY(4px);
   transition: all 0.2s ease;
   z-index: 10;
   white-space: normal;
-  line-height: 1.4;
+  line-height: 1.5;
+  text-align: left;
+  word-break: break-word;
+  writing-mode: horizontal-tb;
 }
 
 .help-tip:hover .help-bubble {
@@ -781,8 +787,15 @@ button:disabled {
 
 .app.dark .help-icon {
   border-color: #434343;
-  color: #cfcfcf;
+  color: #a6a6a6;
+  background: transparent;
+}
+
+.app.dark .help-bubble {
   background: #2f2f2f;
+  color: #f1f1f1;
+  border-color: #434343;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
 /* 文本域样式 */
