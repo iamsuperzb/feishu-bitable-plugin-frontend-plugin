@@ -227,7 +227,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                 <span className="help-tip align-left" onMouseEnter={adjustHelpTipWithinRoot}>
                   <span className="help-icon">?</span>
                   <span className="help-bubble">
-                    {tr('立即执行：页面需要保持打开，关闭页面或关闭插件会停止运行')}
+                    {tr('页面需要保持打开，关闭页面或关闭插件会停止运行')}
                   </span>
                 </span>
               </label>
@@ -244,7 +244,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                 <span className="help-tip align-right" onMouseEnter={adjustHelpTipWithinRoot}>
                   <span className="help-icon">?</span>
                   <span className="help-bubble">
-                    {tr('后台执行：关闭页面或关闭插件也会继续运行')}
+                    {tr('关闭页面或关闭插件也会继续运行')}
                   </span>
                 </span>
               </label>
