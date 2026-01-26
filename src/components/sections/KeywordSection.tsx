@@ -2,6 +2,7 @@ import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
 
 type TableTarget = 'current' | 'new'
 type KeywordRunMode = 'online' | 'offline'
+type KeywordSortType = '1' | '3'
 
 interface OfflineTaskProgress {
   fetched?: number
@@ -39,6 +40,7 @@ interface KeywordSectionProps {
   query: string
   vtime: string
   region: string
+  keywordSortType: KeywordSortType
   keywordRunMode: KeywordRunMode
   keywordBaseId: string
   keywordTargetTable: TableTarget
@@ -59,6 +61,7 @@ interface KeywordSectionProps {
   setQuery: (val: string) => void
   setVtime: (val: string) => void
   setRegion: (val: string) => void
+  setKeywordSortType: (val: KeywordSortType) => void
   setKeywordRunMode: (val: KeywordRunMode) => void
   setKeywordTargetTable: (val: TableTarget) => void
   setKeywordTargetTableId: (val: string) => void
@@ -101,6 +104,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
     query,
     vtime,
     region,
+    keywordSortType,
     keywordRunMode,
     keywordBaseId,
     keywordTargetTable,
@@ -121,6 +125,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
     setQuery,
     setVtime,
     setRegion,
+    setKeywordSortType,
     setKeywordRunMode,
     setKeywordTargetTable,
     setKeywordTargetTableId,
@@ -168,7 +173,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
     <div className="section">
       <div className="section-header" onClick={onToggle}>
         <h2>
-          {tr('关键词下爆款视频采集')}
+          {tr('关键词视频采集')}
           {isCollecting && collectType === 1 && <span className="running-indicator">{tr('采集中')}</span>}
           {!isCollecting && keywordOfflineRunning && <span className="running-indicator">{tr('后台运行中')}</span>}
         </h2>
@@ -186,6 +191,18 @@ export default function KeywordSection(props: KeywordSectionProps) {
               placeholder={tr('输入搜索关键词')}
               disabled={isCollecting}
             />
+          </div>
+          <div className="form-item full-width">
+            <label>{tr('搜索方式:')}</label>
+            <select
+              value={keywordSortType}
+              onChange={(e) => setKeywordSortType(e.target.value as KeywordSortType)}
+              disabled={isCollecting}
+              className="select-styled"
+            >
+              <option value="1">{tr('最爆')}</option>
+              <option value="3">{tr('最新')}</option>
+            </select>
           </div>
           <div className="form-item full-width">
             <label>{tr('发布时间:')}</label>

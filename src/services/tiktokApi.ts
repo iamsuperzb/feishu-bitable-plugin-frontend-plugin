@@ -400,6 +400,7 @@ export const startKeywordOfflineTask = async (
     keyword: string
     region: string
     vtime?: string
+    sort_type?: string
     baseId: string
     targetTable: 'current' | 'new'
     tableId?: string

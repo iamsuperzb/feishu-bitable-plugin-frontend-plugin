@@ -411,6 +411,7 @@ const resolveSelectedFieldList = (
 }
 
 const OFFLINE_KEYWORD_BASE_ID_KEY = 'offline_keyword_base_id'
+const KEYWORD_SORT_TYPE_KEY = 'keyword_sort_type'
 
 const readLocalValue = (key: string) => {
   if (typeof window === 'undefined') return ''
@@ -428,6 +429,10 @@ const writeLocalValue = (key: string, value: string) => {
   } catch {
     return
   }
+}
+
+const normalizeKeywordSortType = (value: string): '1' | '3' => {
+  return value === '3' || value === '1' ? value : '1'
 }
 
 const detectBaseIdFromUrl = () => {
@@ -468,6 +473,9 @@ function App() {
   const [query, setQuery] = useState('')
   const [vtime, setVtime] = useState('7d')
   const [region, setRegion] = useState('US')
+  const [keywordSortType, setKeywordSortType] = useState<'1' | '3'>(
+    normalizeKeywordSortType(readLocalValue(KEYWORD_SORT_TYPE_KEY))
+  )
   const [keywordRunMode, setKeywordRunMode] = useState<'online' | 'offline'>('online')
   const [keywordBaseId, setKeywordBaseId] = useState(readLocalValue(OFFLINE_KEYWORD_BASE_ID_KEY))
   const [keywordOfflineAuthTokenInput, setKeywordOfflineAuthTokenInput] = useState('')
@@ -736,6 +744,10 @@ function App() {
     if (!keywordBaseId) return
     writeLocalValue(OFFLINE_KEYWORD_BASE_ID_KEY, keywordBaseId)
   }, [keywordBaseId])
+
+  useEffect(() => {
+    writeLocalValue(KEYWORD_SORT_TYPE_KEY, keywordSortType)
+  }, [keywordSortType])
 
   /**
    * 封装带用户身份的fetch请求（支持超时）
@@ -1599,6 +1611,7 @@ function App() {
         keyword: trimmedKeyword,
         region: region || 'US',
         vtime,
+        sort_type: keywordSortType,
         baseId,
         targetTable: keywordTargetTable,
         tableId: targetTableId,
@@ -2056,7 +2069,7 @@ function App() {
           keyword: query,
           count: '15',
           offset,
-          sort_type: '0',
+          sort_type: keywordSortType,
           publish_time: vtime,
           region: region || 'US'
         }
@@ -3790,6 +3803,7 @@ function App() {
           query={query}
           vtime={vtime}
           region={region}
+          keywordSortType={keywordSortType}
           keywordRunMode={keywordRunMode}
           keywordBaseId={keywordBaseId}
           keywordTargetTable={keywordTargetTable}
@@ -3810,6 +3824,7 @@ function App() {
           setQuery={setQuery}
           setVtime={setVtime}
           setRegion={setRegion}
+          setKeywordSortType={setKeywordSortType}
           setKeywordRunMode={setKeywordRunMode}
           setKeywordTargetTable={setKeywordTargetTable}
           setKeywordTargetTableId={setKeywordTargetTableId}
