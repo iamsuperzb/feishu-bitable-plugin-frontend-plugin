@@ -448,7 +448,7 @@ const detectBaseIdFromUrl = () => {
 const logEnvConfig = () => {
   const val = import.meta.env.VITE_API_BASE_URL
   if (!val) {
-    console.info('[env-check] 未设置 VITE_API_BASE_URL，将使用同源 /api/*')
+    console.info('[env-check] 未设置 VITE_API_BASE_URL，将使用内置服务地址')
     return
   }
   console.info(`[env-check] VITE_API_BASE_URL=${val}`)
