@@ -194,7 +194,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
             />
           </div>
           <div className="form-item full-width">
-            <label>{tr('搜索方式:')}</label>
+            <label>{tr('排序方式:')}</label>
             <select
               value={keywordSortType}
               onChange={(e) => setKeywordSortType(e.target.value as KeywordSortType)}
