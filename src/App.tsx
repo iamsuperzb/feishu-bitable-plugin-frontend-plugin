@@ -86,6 +86,8 @@ interface VideoCoverSource {
   }
 }
 
+type KeywordSortType = '1' | '3' | 'all'
+
 type OfflineTaskStatus = 'queued' | 'running' | 'completed' | 'stopped'
 
 interface OfflineTaskProgress {
@@ -433,8 +435,8 @@ const writeLocalValue = (key: string, value: string) => {
   }
 }
 
-const normalizeKeywordSortType = (value: string): '1' | '3' => {
-  return value === '3' || value === '1' ? value : '1'
+const normalizeKeywordSortType = (value: string): KeywordSortType => {
+  return value === '3' || value === '1' || value === 'all' ? value : '1'
 }
 
 const detectBaseIdFromUrl = () => {
@@ -475,7 +477,7 @@ function App() {
   const [query, setQuery] = useState('')
   const [vtime, setVtime] = useState('7d')
   const [region, setRegion] = useState('US')
-  const [keywordSortType, setKeywordSortType] = useState<'1' | '3'>(
+  const [keywordSortType, setKeywordSortType] = useState<KeywordSortType>(
     normalizeKeywordSortType(readLocalValue(KEYWORD_SORT_TYPE_KEY))
   )
   const [keywordRunMode, setKeywordRunMode] = useState<'online' | 'offline'>('online')
@@ -2050,11 +2052,10 @@ function App() {
       let totalWritten = 0
       let remainingAfterWrite = typeof quotaInfo?.remaining === 'number' ? quotaInfo.remaining : null
       let quotaNote = ''
-      let hasMore = true
-      let offset = '0'
-      let pageCount = 0
-      let missingNextCursorOffset: string | null = null
       const maxPages = 100 // 最大页数限制
+      const sortTypes: Array<'1' | '3'> = keywordSortType === 'all'
+        ? ['1', '3']
+        : [keywordSortType]
 
       // 在采集开始前扫描空行（只扫描一次，检查整行是否为空）
       setMessage(tr('正在扫描空行...'))
@@ -2063,218 +2064,230 @@ function App() {
         setMessage(tr('发现 {{count}} 个空行，将优先填充', { count: emptyRecordIds.length }))
       }
 
-      // 主循环
-      mainLoop: while (hasMore && !keywordShouldStopRef.current && pageCount < maxPages) {
-        // 检查是否需要停止
-        if (keywordShouldStopRef.current) break;
+      const runKeywordSortType = async (sortType: '1' | '3') => {
+        let hasMore = true
+        let offset = '0'
+        let pageCount = 0
+        let missingNextCursorOffset: string | null = null
 
-        const params = {
-          keyword: query,
-          count: '15',
-          offset,
-          sort_type: keywordSortType,
-          publish_time: vtime,
-          region: region || 'US'
-        }
+        while (hasMore && !keywordShouldStopRef.current && pageCount < maxPages) {
+          // 检查是否需要停止
+          if (keywordShouldStopRef.current) return false
 
-        // 创建新的AbortController
-        keywordAbortControllerRef.current = new AbortController();
-
-        try {
-          const response = await fetchKeywordVideos(params, fetchWithIdentity, {
-            timeout: TIMEOUT_CONFIG.SEARCH,
-            signal: keywordAbortControllerRef.current.signal
-          })
-
-          // 处理429配额超限错误
-          if (await handle429Error(response)) {
-            break mainLoop;
+          const params = {
+            keyword: query,
+            count: '15',
+            offset,
+            sort_type: sortType,
+            publish_time: vtime,
+            region: region || 'US'
           }
 
-          if (!response.ok) {
-            const errorText = await response.text()
-            console.error('API 响应错误:', errorText)
-            throw new Error(`API 请求失败: ${response.status} ${response.statusText || ''}`)
-          }
+          // 创建新的AbortController
+          keywordAbortControllerRef.current = new AbortController()
 
-          const data = await response.json()
-          console.log('API 返回数据:', data)
-
-          // 处理新的 API 返回格式（使用可选链式操作提高安全性）
-          if (data?.search_item_list && Array.isArray(data.search_item_list)) {
-            const validItems = data.search_item_list.filter((item: SearchItemData) => {
-              if (!item || !item.aweme_info || !item.aweme_info.author) return false
-              return item.aweme_info.region === region
-            }).map((item: SearchItemData) => {
-              const awemeInfo = item.aweme_info!
-
-              // 获取视频链接：优先级 1) 根层级 share_url 2) share_info.share_url 3) aweme_id 构建
-              console.log('[DEBUG 视频链接提取] aweme_id:', awemeInfo.aweme_id)
-              console.log('[DEBUG 视频链接提取] 根层级 share_url:', awemeInfo.share_url)
-              console.log('[DEBUG 视频链接提取] share_info.share_url:', awemeInfo.share_info?.share_url)
-              console.log('[DEBUG 视频链接提取] author.unique_id:', awemeInfo.author?.unique_id)
-
-              const videoUrl = buildVideoShareLink({
-                shareUrl: awemeInfo.share_url,
-                shareInfoUrl: awemeInfo.share_info?.share_url,
-                awemeId: awemeInfo.aweme_id,
-                authorId: awemeInfo.author?.unique_id
-              })
-
-              console.log('[DEBUG 视频链接提取] 最终 videoUrl:', videoUrl)
-
-              // 封面链接优先级：dynamic -> cover -> origin
-              const coverUrl = pickCoverUrl(awemeInfo.video)
-
-              // 使用带货检测函数分析视频数据
-              const commerce = commerceFromAweme(awemeInfo as unknown as Record<string, unknown>)
-
-              return {
-                author: {
-                  uniqueId: awemeInfo.author.unique_id || ''
-                },
-                awemeId: awemeInfo.aweme_id || '',
-                desc: awemeInfo.desc || '',
-                createTime: awemeInfo.create_time || 0,
-                region: awemeInfo.region || '',
-                shareLink: videoUrl,
-                videoUrl: awemeInfo.video?.play_addr?.url_list?.[0] || '',
-                coverUrl,
-                stats: {
-                  playCount: awemeInfo.statistics?.play_count || 0,
-                  diggCount: awemeInfo.statistics?.digg_count || 0,
-                  commentCount: awemeInfo.statistics?.comment_count || 0,
-                  shareCount: awemeInfo.statistics?.share_count || 0,
-                  collectCount: awemeInfo.statistics?.collect_count || 0
-                },
-                anchors: awemeInfo.anchors,
-                anchor_info: awemeInfo.anchor_info,
-                bottom_products: awemeInfo.bottom_products,
-                products_info: awemeInfo.products_info,
-                right_products: awemeInfo.right_products,
-                has_commerce_goods: awemeInfo.has_commerce_goods,
-                existed_commerce_goods: awemeInfo.existed_commerce_goods,
-                ecommerce_goods: awemeInfo.ecommerce_goods,
-                commerce_info: awemeInfo.commerce_info,
-                commerce
-              }
+          try {
+            const response = await fetchKeywordVideos(params, fetchWithIdentity, {
+              timeout: TIMEOUT_CONFIG.SEARCH,
+              signal: keywordAbortControllerRef.current.signal
             })
 
-            if (validItems.length === 0) {
-              console.warn('当前页没有有效的数据项（可能author缺失），检查是否还有更多页');
-              // 不直接停止，让后续的has_more判断决定是否继续
-            } else {
-              // 批量写入记录
-              console.log(`开始写入 ${validItems.length} 条记录`);
-              const recordsToInsert: Record<string, IOpenCellValue>[] = [];
-              if (!Object.keys(keywordWriters).length) {
-                const refreshedMeta = await targetTable.getFieldMetaList();
-                keywordWriters = await buildFieldWriters(targetTable, KEYWORD_FIELD_CONFIGS, refreshedMeta, keywordSelection);
-                await refreshFields();
-              }
-              const coverEnabled = Boolean(keywordWriters['视频封面'])
-              for (const item of validItems) {
-                if (keywordShouldStopRef.current) {
-                  console.log('检测到停止标志，终止写入');
-                  break mainLoop;
+            // 处理429配额超限错误
+            if (await handle429Error(response)) {
+              return false
+            }
+
+            if (!response.ok) {
+              const errorText = await response.text()
+              console.error('API 响应错误:', errorText)
+              throw new Error(`API 请求失败: ${response.status} ${response.statusText || ''}`)
+            }
+
+            const data = await response.json()
+            console.log('API 返回数据:', data)
+
+            // 处理新的 API 返回格式（使用可选链式操作提高安全性）
+            if (data?.search_item_list && Array.isArray(data.search_item_list)) {
+              const validItems = data.search_item_list.filter((item: SearchItemData) => {
+                if (!item || !item.aweme_info || !item.aweme_info.author) return false
+                return item.aweme_info.region === region
+              }).map((item: SearchItemData) => {
+                const awemeInfo = item.aweme_info!
+
+                // 获取视频链接：优先级 1) 根层级 share_url 2) share_info.share_url 3) aweme_id 构建
+                console.log('[DEBUG 视频链接提取] aweme_id:', awemeInfo.aweme_id)
+                console.log('[DEBUG 视频链接提取] 根层级 share_url:', awemeInfo.share_url)
+                console.log('[DEBUG 视频链接提取] share_info.share_url:', awemeInfo.share_info?.share_url)
+                console.log('[DEBUG 视频链接提取] author.unique_id:', awemeInfo.author?.unique_id)
+
+                const videoUrl = buildVideoShareLink({
+                  shareUrl: awemeInfo.share_url,
+                  shareInfoUrl: awemeInfo.share_info?.share_url,
+                  awemeId: awemeInfo.aweme_id,
+                  authorId: awemeInfo.author?.unique_id
+                })
+
+                console.log('[DEBUG 视频链接提取] 最终 videoUrl:', videoUrl)
+
+                // 封面链接优先级：dynamic -> cover -> origin
+                const coverUrl = pickCoverUrl(awemeInfo.video)
+
+                // 使用带货检测函数分析视频数据
+                const commerce = commerceFromAweme(awemeInfo as unknown as Record<string, unknown>)
+
+                return {
+                  author: {
+                    uniqueId: awemeInfo.author.unique_id || ''
+                  },
+                  awemeId: awemeInfo.aweme_id || '',
+                  desc: awemeInfo.desc || '',
+                  createTime: awemeInfo.create_time || 0,
+                  region: awemeInfo.region || '',
+                  shareLink: videoUrl,
+                  videoUrl: awemeInfo.video?.play_addr?.url_list?.[0] || '',
+                  coverUrl,
+                  stats: {
+                    playCount: awemeInfo.statistics?.play_count || 0,
+                    diggCount: awemeInfo.statistics?.digg_count || 0,
+                    commentCount: awemeInfo.statistics?.comment_count || 0,
+                    shareCount: awemeInfo.statistics?.share_count || 0,
+                    collectCount: awemeInfo.statistics?.collect_count || 0
+                  },
+                  anchors: awemeInfo.anchors,
+                  anchor_info: awemeInfo.anchor_info,
+                  bottom_products: awemeInfo.bottom_products,
+                  products_info: awemeInfo.products_info,
+                  right_products: awemeInfo.right_products,
+                  has_commerce_goods: awemeInfo.has_commerce_goods,
+                  existed_commerce_goods: awemeInfo.existed_commerce_goods,
+                  ecommerce_goods: awemeInfo.ecommerce_goods,
+                  commerce_info: awemeInfo.commerce_info,
+                  commerce
                 }
-                const linkKey = normalizeUrlKey(item.shareLink)
-                if (!linkKey || existingLinks.has(linkKey)) continue
-                existingLinks.add(linkKey)
-                let coverFile: File | undefined
-                if (coverEnabled && item.coverUrl) {
-                  coverFile = await fetchCoverFile(
-                    item.coverUrl,
-                    buildCoverFileName('keyword', item.awemeId),
-                    {
-                      signal: keywordAbortControllerRef.current?.signal,
-                      convert: false
-                    }
-                  )
+              })
+
+              if (validItems.length === 0) {
+                console.warn('当前页没有有效的数据项（可能author缺失），检查是否还有更多页');
+                // 不直接停止，让后续的has_more判断决定是否继续
+              } else {
+                // 批量写入记录
+                console.log(`开始写入 ${validItems.length} 条记录`);
+                const recordsToInsert: Record<string, IOpenCellValue>[] = [];
+                if (!Object.keys(keywordWriters).length) {
+                  const refreshedMeta = await targetTable.getFieldMetaList();
+                  keywordWriters = await buildFieldWriters(targetTable, KEYWORD_FIELD_CONFIGS, refreshedMeta, keywordSelection);
+                  await refreshFields();
+                }
+                const coverEnabled = Boolean(keywordWriters['视频封面'])
+                for (const item of validItems) {
                   if (keywordShouldStopRef.current) {
                     console.log('检测到停止标志，终止写入');
-                    break mainLoop;
+                    return false
                   }
+                  const linkKey = normalizeUrlKey(item.shareLink)
+                  if (!linkKey || existingLinks.has(linkKey)) continue
+                  existingLinks.add(linkKey)
+                  let coverFile: File | undefined
+                  if (coverEnabled && item.coverUrl) {
+                    coverFile = await fetchCoverFile(
+                      item.coverUrl,
+                      buildCoverFileName('keyword', item.awemeId),
+                      {
+                        signal: keywordAbortControllerRef.current?.signal,
+                        convert: false
+                      }
+                    )
+                    if (keywordShouldStopRef.current) {
+                      console.log('检测到停止标志，终止写入');
+                      return false
+                    }
+                  }
+                  const record = await buildKeywordRecord({ ...item, coverFile }, keywordWriters, query);
+                  if (!record) continue
+                  recordsToInsert.push(record);
                 }
-                const record = await buildKeywordRecord({ ...item, coverFile }, keywordWriters, query);
-                if (!record) continue
-                recordsToInsert.push(record);
+
+                if (recordsToInsert.length) {
+                  const { appendedCount, filledCount } = await addRecordsInBatches(targetTable, recordsToInsert, {
+                    emptyRecordIds,
+                    stopRef: keywordShouldStopRef
+                  });
+                  const writtenCount = appendedCount + filledCount
+                  const quotaResult = await applyQuotaConsumption(remainingAfterWrite, writtenCount)
+                  remainingAfterWrite = quotaResult.remaining
+                  quotaNote = quotaResult.note
+                  totalWritten += writtenCount;
+                  setMessage(tr(keywordTargetTable === 'new'
+                    ? '已写入新表 {{table}} 共 {{count}} 条'
+                    : '已写入 {{count}} 条数据', {
+                    table: targetTableName || '',
+                    count: totalWritten,
+                    used: totalWritten,
+                    remaining: formatRemaining(remainingAfterWrite)
+                  }) + quotaNote);
+                }
               }
 
-              if (recordsToInsert.length) {
-                const { appendedCount, filledCount } = await addRecordsInBatches(targetTable, recordsToInsert, {
-                  emptyRecordIds,
-                  stopRef: keywordShouldStopRef
-                });
-                const writtenCount = appendedCount + filledCount
-                const quotaResult = await applyQuotaConsumption(remainingAfterWrite, writtenCount)
-                remainingAfterWrite = quotaResult.remaining
-                quotaNote = quotaResult.note
-                totalWritten += writtenCount;
-                setMessage(tr(keywordTargetTable === 'new'
-                  ? '已写入新表 {{table}} 共 {{count}} 条'
-                  : '已写入 {{count}} 条数据', {
-                  table: targetTableName || '',
-                  count: totalWritten,
-                  used: totalWritten,
-                  remaining: formatRemaining(remainingAfterWrite)
-                }) + quotaNote);
+              // 数据页处理完成，检查是否有更多
+              if (keywordShouldStopRef.current) {
+                console.log('检测到停止标志，终止分页处理');
+                return false
               }
-            }
 
-            // 数据页处理完成，检查是否有更多
-            if (keywordShouldStopRef.current) {
-              console.log('检测到停止标志，终止分页处理');
-              break mainLoop;
-            }
-
-            if (data.has_more) {
-              const nextCursor = data.max_cursor ?? data.cursor
-              const nextCursorText = nextCursor === undefined || nextCursor === null
-                ? ''
-                : String(nextCursor).trim()
-              const isMissingNextCursor = !nextCursorText || nextCursorText === offset
-              if (isMissingNextCursor) {
-                if (missingNextCursorOffset === offset) {
-                  setMessage(tr('仍未获得下一批起点，已结束当前关键词'))
-                  hasMore = false
+              if (data.has_more) {
+                const nextCursor = data.max_cursor ?? data.cursor
+                const nextCursorText = nextCursor === undefined || nextCursor === null
+                  ? ''
+                  : String(nextCursor).trim()
+                const isMissingNextCursor = !nextCursorText || nextCursorText === offset
+                if (isMissingNextCursor) {
+                  if (missingNextCursorOffset === offset) {
+                    setMessage(tr('仍未获得下一批起点，已结束当前关键词'))
+                    hasMore = false
+                  } else {
+                    missingNextCursorOffset = offset
+                    setMessage(tr('还有更多但没有下一批起点，已重试当前批次'))
+                  }
                 } else {
-                  missingNextCursorOffset = offset
-                  setMessage(tr('还有更多但没有下一批起点，已重试当前批次'))
+                  missingNextCursorOffset = null
+                  offset = nextCursorText
+                  pageCount++;
+                  console.log(`获取第 ${pageCount} 页数据完成`);
+                  setMessage(tr('已获取第 {{page}} 页数据，共 {{total}} 条', { page: pageCount, total: totalWritten }));
                 }
               } else {
-                missingNextCursorOffset = null
-                offset = nextCursorText
-                pageCount++;
-                console.log(`获取第 ${pageCount} 页数据完成`);
-                setMessage(tr('已获取第 {{page}} 页数据，共 {{total}} 条', { page: pageCount, total: totalWritten }));
+                hasMore = false;
+                console.log('没有更多数据，结束采集');
               }
             } else {
-              hasMore = false;
-              console.log('没有更多数据，结束采集');
+              console.error('返回数据格式错误:', data);
+              setMessage(tr('API 返回数据格式错误'));
+              return false
             }
-          } else {
-            console.error('返回数据格式错误:', data);
-            setMessage(tr('API 返回数据格式错误'));
-            break;
-          }
 
-          // 页面处理完成，添加延时
-          if (keywordShouldStopRef.current) {
-            console.log('检测到停止标志，终止分页处理');
-            break mainLoop;
-          }
+            // 页面处理完成，添加延时
+            if (keywordShouldStopRef.current) {
+              console.log('检测到停止标志，终止分页处理');
+              return false
+            }
 
-          // 减少页面间延时
-          await new Promise(resolve => setTimeout(resolve, 300));
+            // 减少页面间延时
+            await new Promise(resolve => setTimeout(resolve, 300));
 
-        } catch (error: unknown) {
-          if (error instanceof Error && error.name === 'AbortError') {
-            console.log('API请求已被中止');
-            break mainLoop;
+          } catch (error: unknown) {
+            if (error instanceof Error && error.name === 'AbortError') {
+              console.log('API请求已被中止');
+              return false
+            }
+            throw error;
           }
-          throw error;
         }
+        return !keywordShouldStopRef.current
+      }
+
+      for (const sortType of sortTypes) {
+        const shouldContinue = await runKeywordSortType(sortType)
+        if (!shouldContinue) break
       }
 
       // 采集完成或停止

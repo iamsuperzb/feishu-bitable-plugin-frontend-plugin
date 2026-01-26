@@ -2,7 +2,7 @@ import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
 
 type TableTarget = 'current' | 'new'
 type KeywordRunMode = 'online' | 'offline'
-type KeywordSortType = '1' | '3'
+type KeywordSortType = '1' | '3' | 'all'
 
 interface OfflineTaskProgress {
   fetched?: number
@@ -201,6 +201,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
               disabled={isCollecting}
               className="select-styled"
             >
+              <option value="all">{tr('全部')}</option>
               <option value="1">{tr('最爆')}</option>
               <option value="3">{tr('最新')}</option>
             </select>
