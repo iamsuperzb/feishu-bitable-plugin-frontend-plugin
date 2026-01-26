@@ -50,6 +50,7 @@ interface KeywordVideoItem {
   author: { uniqueId: string }
   desc: string
   createTime: number
+  region?: string
   shareLink: string
   videoUrl: string
   coverFile?: File
@@ -177,6 +178,7 @@ export const KEYWORD_VIDEO_MAPPINGS: FieldMapping<KeywordVideoItem>[] = [
   },
   { name: '账号名称', getValue: item => item.author.uniqueId },
   { name: '视频标题', getValue: item => item.desc },
+  { name: '视频发布国家', getValue: item => item.region || '' },
   { name: '视频下载链接', getValue: item => item.videoUrl },
   { name: '是否带货', getValue: (_, ctx) => ctx?.commerce?.isCommerce ?? false },
   {

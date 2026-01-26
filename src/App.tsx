@@ -175,6 +175,7 @@ interface SearchItemData {
     }
     desc: string
     create_time: number
+    region?: string
     share_info?: {
       share_url?: string  // share_info 中的 share_url（备用）
     }
@@ -329,6 +330,7 @@ const KEYWORD_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '视频互动率', type: FieldType.Number },
   { field_name: '账号名称', type: FieldType.Text },
   { field_name: '视频标题', type: FieldType.Text },
+  { field_name: '视频发布国家', type: FieldType.Text },
   { field_name: '视频下载链接', type: FieldType.Url },
   { field_name: '是否带货', type: FieldType.Checkbox },
   { field_name: '带货产品链接', type: FieldType.Url },
@@ -546,6 +548,7 @@ function App() {
     '视频互动率': true,
     '账号名称': true,
     '视频标题': true,
+    '视频发布国家': true,
     '视频下载链接': true,
     '是否带货': true,
     '带货产品链接': true,
@@ -2132,6 +2135,7 @@ function App() {
                 awemeId: awemeInfo.aweme_id || '',
                 desc: awemeInfo.desc || '',
                 createTime: awemeInfo.create_time || 0,
+                region: awemeInfo.region || '',
                 shareLink: videoUrl,
                 videoUrl: awemeInfo.video?.play_addr?.url_list?.[0] || '',
                 coverUrl,
