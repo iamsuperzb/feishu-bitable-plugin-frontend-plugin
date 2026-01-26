@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next';
 const resources: Resource = {
   zh: {
     translation: {
-      title: 'TikTok 数据采集工具',
+      title: 'TK增长参谋',
       '关键词视频采集': '关键词视频采集',
       '单账号作品表现': '单账号作品表现',
       '提取视频音频': '提取视频音频',
@@ -225,7 +225,7 @@ const resources: Resource = {
   },
   en: {
     translation: {
-      title: 'TikTok Data Collector',
+      title: 'TK Growth Assistant',
       '关键词视频采集': 'Keyword video collection',
       '单账号作品表现': 'Single-account content performance',
       '提取视频音频': 'Extract video audio',
@@ -446,7 +446,7 @@ const resources: Resource = {
   },
   jp: {
     translation: {
-      title: 'TikTok データ収集ツール',
+      title: 'TK增长参谋',
       '关键词视频采集': 'キーワード動画収集',
       '单账号作品表现': '単一アカウント作品パフォーマンス',
       '提取视频音频': '動画音声抽出',
