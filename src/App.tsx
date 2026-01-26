@@ -2103,7 +2103,8 @@ function App() {
           // 处理新的 API 返回格式（使用可选链式操作提高安全性）
           if (data?.search_item_list && Array.isArray(data.search_item_list)) {
             const validItems = data.search_item_list.filter((item: SearchItemData) => {
-              return item && item.aweme_info && item.aweme_info.author
+              if (!item || !item.aweme_info || !item.aweme_info.author) return false
+              return item.aweme_info.region === region
             }).map((item: SearchItemData) => {
               const awemeInfo = item.aweme_info!
 
