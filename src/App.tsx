@@ -2766,7 +2766,7 @@ function App() {
         let processed = 0
         let skipped = 0
         const cache = new Map<string, AccountInfoResponse>()
-        const concurrency = 1
+        const concurrency = 5
         const reportProgress = makeProgressThrottler()
 
         // 批量写入新表数据
@@ -3274,7 +3274,7 @@ function App() {
       // 列模式：遍历当前表记录
       if (audioMode === 'column') {
         const pageSize = 200;
-        const concurrency = 1;
+        const concurrency = 5;
         let pageToken: string | undefined;
         let processedCount = 0;
         let hasMore = true;
