@@ -52,6 +52,8 @@ interface AccountInfoSectionProps {
   setAccountInfoOverwrite: (val: boolean) => void
   accountInfoColumnTargetTable: TableTarget
   setAccountInfoColumnTargetTable: (val: TableTarget) => void
+  accountInfoColumnTargetTableId: string
+  setAccountInfoColumnTargetTableId: (val: string) => void
   accountInfoColumnNewTableName: string
   setAccountInfoColumnNewTableName: (val: string) => void
   batchTargetTable: TableTarget
@@ -114,6 +116,8 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
     setAccountInfoOverwrite,
     accountInfoColumnTargetTable,
     setAccountInfoColumnTargetTable,
+    accountInfoColumnTargetTableId,
+    setAccountInfoColumnTargetTableId,
     accountInfoColumnNewTableName,
     setAccountInfoColumnNewTableName,
     batchTargetTable,
@@ -163,6 +167,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
   const resolvedTableOptions = tableOptions.length
     ? tableOptions
     : (currentTableId ? [{ id: currentTableId, name: tr('当前表格') }] : [])
+  const selectedColumnTargetTableId = accountInfoColumnTargetTableId || currentTableId
   const selectedBatchTargetTableId = accountInfoBatchTargetTableId || currentTableId
 
   return (
@@ -289,6 +294,20 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                     />
                     {tr('写入表格')}
                   </label>
+                  {accountInfoColumnTargetTable === 'current' && (
+                    <select
+                      value={selectedColumnTargetTableId}
+                      onChange={(e) => setAccountInfoColumnTargetTableId(e.target.value)}
+                      disabled={accountInfoLoading}
+                      className="select-styled"
+                    >
+                      {resolvedTableOptions.map(option => (
+                        <option key={option.id} value={option.id}>
+                          {option.name || tr('未命名表格')}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 

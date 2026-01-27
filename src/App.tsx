@@ -613,6 +613,7 @@ function App() {
   const [accountInfoLoading, setAccountInfoLoading] = useState(false)
   const [accountInfoOverwrite, setAccountInfoOverwrite] = useState(false)
   const [accountInfoColumnTargetTable, setAccountInfoColumnTargetTable] = useState<'current' | 'new'>('new')
+  const [accountInfoColumnTargetTableId, setAccountInfoColumnTargetTableId] = useState('')
   const [accountInfoColumnNewTableName, setAccountInfoColumnNewTableName] = useState(getDefaultAccountInfoTableName())
   const [accountInfoColumnTableNameAuto, setAccountInfoColumnTableNameAuto] = useState(true)
   const [batchTargetTable, setBatchTargetTable] = useState<'current' | 'new'>('new')
@@ -741,6 +742,7 @@ function App() {
     }
     normalizeSelection(setKeywordTargetTableId)
     normalizeSelection(setAccountTargetTableId)
+    normalizeSelection(setAccountInfoColumnTargetTableId)
     normalizeSelection(setAccountInfoBatchTargetTableId)
     normalizeSelection(setAudioTargetTableId)
   }, [tableId, tableMetaList])
@@ -1778,12 +1780,17 @@ function App() {
           setMessage(tr('无法获取写入表格'))
           return
         }
-        targetTableName = await resolveTableName(tableId)
+        const selectedTableId = accountInfoColumnTargetTableId || tableId
+        if (!selectedTableId) {
+          setMessage(tr('无法获取写入表格'))
+          return
+        }
+        targetTableName = await resolveTableName(selectedTableId)
         payload = {
           baseId,
           mode: 'column',
           targetTable: accountInfoColumnTargetTable,
-          tableId,
+          tableId: selectedTableId,
           tableName: targetTableName,
           sourceTableId: tableId,
           usernameFieldId: accountInfoUsernameField,
@@ -2732,9 +2739,20 @@ function App() {
         let targetTableName = ''
         let shouldUpdateSource = true
         if (accountInfoColumnTargetTable === 'current') {
-          const selectedTableId = activeTable.id
-          shouldUpdateSource = true
-          targetTable = activeTable
+          const selectedTableId = accountInfoColumnTargetTableId || activeTable.id
+          if (!selectedTableId) {
+            setMessage(tr('无法获取写入表格'))
+            return
+          }
+          if (selectedTableId !== activeTable.id) {
+            const selectedTable = await bitable.base.getTableById(selectedTableId)
+            if (!selectedTable) {
+              setMessage(tr('无法获取写入表格'))
+              return
+            }
+            targetTable = selectedTable
+          }
+          shouldUpdateSource = selectedTableId === activeTable.id
           targetTableName = await resolveTableNameById(selectedTableId)
         } else {
           let nextTableName = accountInfoColumnNewTableName
@@ -3933,6 +3951,8 @@ function App() {
           setAccountInfoOverwrite={setAccountInfoOverwrite}
           accountInfoColumnTargetTable={accountInfoColumnTargetTable}
           setAccountInfoColumnTargetTable={setAccountInfoColumnTargetTable}
+          accountInfoColumnTargetTableId={accountInfoColumnTargetTableId}
+          setAccountInfoColumnTargetTableId={setAccountInfoColumnTargetTableId}
           accountInfoColumnNewTableName={accountInfoColumnNewTableName}
           setAccountInfoColumnNewTableName={handleAccountInfoColumnNewTableNameChange}
           batchTargetTable={batchTargetTable}
