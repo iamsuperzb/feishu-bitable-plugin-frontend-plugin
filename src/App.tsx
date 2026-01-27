@@ -2757,7 +2757,7 @@ function App() {
         let processed = 0
         let skipped = 0
         const cache = new Map<string, AccountInfoResponse>()
-        const concurrency = 5
+        const concurrency = accountInfoConcurrencyLimit
         const reportProgress = makeProgressThrottler()
 
         // 批量写入新表数据
@@ -3266,7 +3266,7 @@ function App() {
       // 列模式：遍历当前表记录
       if (audioMode === 'column') {
         const pageSize = 200;
-        const concurrency = 5;
+        const concurrency = audioConcurrencyLimit;
         let pageToken: string | undefined;
         let processedCount = 0;
         let hasMore = true;
@@ -3514,6 +3514,12 @@ function App() {
   const accountQuotaInsufficient = quotaZero
   const accountInfoQuotaInsufficient = quotaZero && accountInfoEstimatedRows > 0
   const audioQuotaInsufficient = quotaZero
+  const resolveConcurrencyLimit = (value: unknown, fallback = 5) => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback
+  }
+  const accountInfoConcurrencyLimit = resolveConcurrencyLimit(quotaInfo?.accountInfoConcurrencyLimit)
+  const audioConcurrencyLimit = resolveConcurrencyLimit(quotaInfo?.audioConcurrencyLimit)
 
   // 批量输入仅支持新建表格
   useEffect(() => {

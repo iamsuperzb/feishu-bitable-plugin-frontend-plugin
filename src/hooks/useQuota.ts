@@ -40,6 +40,10 @@ export interface QuotaInfo {
   planName?: string | null
   /** 周期/到期时间 */
   resetAt?: string | null
+  /** 账号资料补全并发上限 */
+  accountInfoConcurrencyLimit?: number | null
+  /** 视频文案提取并发上限 */
+  audioConcurrencyLimit?: number | null
 }
 
 /**
@@ -162,7 +166,9 @@ export const useQuota = (options: UseQuotaOptions) => {
         planType,
         planCode: errorData.planCode ?? quotaInfo?.planCode ?? null,
         planName: errorData.planName ?? quotaInfo?.planName ?? null,
-        resetAt
+        resetAt,
+        accountInfoConcurrencyLimit: errorData.accountInfoConcurrencyLimit ?? quotaInfo?.accountInfoConcurrencyLimit ?? null,
+        audioConcurrencyLimit: errorData.audioConcurrencyLimit ?? quotaInfo?.audioConcurrencyLimit ?? null
       })
 
       const fallbackQuota = errorData.quota ?? quotaInfo?.quota
@@ -184,6 +190,8 @@ export const useQuota = (options: UseQuotaOptions) => {
     quotaInfo?.planType,
     quotaInfo?.planCode,
     quotaInfo?.planName,
+    quotaInfo?.accountInfoConcurrencyLimit,
+    quotaInfo?.audioConcurrencyLimit,
     quotaInfo?.resetAt,
     setMessage,
     keywordShouldStopRef,
@@ -244,7 +252,9 @@ export const useQuota = (options: UseQuotaOptions) => {
           planType: data.planType,
           planCode: data.planCode ?? null,
           planName: data.planName ?? null,
-          resetAt: data.resetAt ?? null
+          resetAt: data.resetAt ?? null,
+          accountInfoConcurrencyLimit: data.accountInfoConcurrencyLimit ?? null,
+          audioConcurrencyLimit: data.audioConcurrencyLimit ?? null
         })
         setMessage('') // 清除之前的错误消息
         console.log(`[quota] 配额查询成功: ${data.remaining}/${data.quota}`)
@@ -302,7 +312,9 @@ export const useQuota = (options: UseQuotaOptions) => {
           planType: data?.planType ?? quotaInfo?.planType,
           planCode: data?.planCode ?? quotaInfo?.planCode ?? null,
           planName: data?.planName ?? quotaInfo?.planName ?? null,
-          resetAt: data?.resetAt ?? quotaInfo?.resetAt ?? null
+          resetAt: data?.resetAt ?? quotaInfo?.resetAt ?? null,
+          accountInfoConcurrencyLimit: data?.accountInfoConcurrencyLimit ?? quotaInfo?.accountInfoConcurrencyLimit ?? null,
+          audioConcurrencyLimit: data?.audioConcurrencyLimit ?? quotaInfo?.audioConcurrencyLimit ?? null
         }
         setQuotaInfo(nextInfo)
         return nextInfo
@@ -325,7 +337,9 @@ export const useQuota = (options: UseQuotaOptions) => {
           planType: data.planType,
           planCode: data.planCode ?? null,
           planName: data.planName ?? null,
-          resetAt: data.resetAt ?? null
+          resetAt: data.resetAt ?? null,
+          accountInfoConcurrencyLimit: data?.accountInfoConcurrencyLimit ?? quotaInfo?.accountInfoConcurrencyLimit ?? null,
+          audioConcurrencyLimit: data?.audioConcurrencyLimit ?? quotaInfo?.audioConcurrencyLimit ?? null
         }
         setQuotaInfo(nextInfo)
         return nextInfo
