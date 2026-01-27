@@ -416,6 +416,9 @@ const resolveSelectedFieldList = (
 
 const OFFLINE_KEYWORD_BASE_ID_KEY = 'offline_keyword_base_id'
 const KEYWORD_SORT_TYPE_KEY = 'keyword_sort_type'
+const KEYWORD_VTIME_KEY_PREFIX = 'keyword_vtime_table_'
+const DEFAULT_KEYWORD_VTIME = '30d'
+const KEYWORD_VTIME_OPTIONS = new Set(['1d', '7d', '30d', '90d', '180d'])
 
 const readLocalValue = (key: string) => {
   if (typeof window === 'undefined') return ''
@@ -438,6 +441,12 @@ const writeLocalValue = (key: string, value: string) => {
 const normalizeKeywordSortType = (value: string): KeywordSortType => {
   return value === '3' || value === '1' || value === 'all' ? value : '1'
 }
+
+const normalizeKeywordVtime = (value: string): string => {
+  return KEYWORD_VTIME_OPTIONS.has(value) ? value : DEFAULT_KEYWORD_VTIME
+}
+
+const buildKeywordVtimeKey = (tableId: string) => `${KEYWORD_VTIME_KEY_PREFIX}${tableId}`
 
 const detectBaseIdFromUrl = () => {
   if (typeof window === 'undefined') return ''
@@ -475,7 +484,7 @@ function App() {
 
   // 关键词搜索相关状态
   const [query, setQuery] = useState('')
-  const [vtime, setVtime] = useState('7d')
+  const [vtime, setVtime] = useState(DEFAULT_KEYWORD_VTIME)
   const [region, setRegion] = useState('US')
   const [keywordSortType, setKeywordSortType] = useState<KeywordSortType>(
     normalizeKeywordSortType(readLocalValue(KEYWORD_SORT_TYPE_KEY))
@@ -493,6 +502,7 @@ function App() {
   const [keywordOfflineActiveTaskId, setKeywordOfflineActiveTaskId] = useState('')
   const [offlineCenterOpen, setOfflineCenterOpen] = useState(false)
   const keywordOfflineHadRunningRef = useRef(false)
+  const keywordVtimeTableRef = useRef('')
 
   // 账号视频搜索相关状态
   const [username, setUsername] = useState('')
@@ -751,6 +761,19 @@ function App() {
   useEffect(() => {
     writeLocalValue(KEYWORD_SORT_TYPE_KEY, keywordSortType)
   }, [keywordSortType])
+
+  useEffect(() => {
+    if (!tableId) return
+    const stored = readLocalValue(buildKeywordVtimeKey(tableId))
+    setVtime(normalizeKeywordVtime(stored))
+    keywordVtimeTableRef.current = tableId
+  }, [tableId])
+
+  useEffect(() => {
+    if (!tableId) return
+    if (keywordVtimeTableRef.current !== tableId) return
+    writeLocalValue(buildKeywordVtimeKey(tableId), vtime)
+  }, [tableId, vtime])
 
   /**
    * 封装带用户身份的fetch请求（支持超时）
