@@ -603,7 +603,6 @@ function App() {
   const [accountInfoLoading, setAccountInfoLoading] = useState(false)
   const [accountInfoOverwrite, setAccountInfoOverwrite] = useState(false)
   const [accountInfoColumnTargetTable, setAccountInfoColumnTargetTable] = useState<'current' | 'new'>('new')
-  const [accountInfoColumnTargetTableId, setAccountInfoColumnTargetTableId] = useState('')
   const [accountInfoColumnNewTableName, setAccountInfoColumnNewTableName] = useState(getDefaultAccountInfoTableName())
   const [accountInfoColumnTableNameAuto, setAccountInfoColumnTableNameAuto] = useState(true)
   const [batchTargetTable, setBatchTargetTable] = useState<'current' | 'new'>('new')
@@ -732,7 +731,6 @@ function App() {
     }
     normalizeSelection(setKeywordTargetTableId)
     normalizeSelection(setAccountTargetTableId)
-    normalizeSelection(setAccountInfoColumnTargetTableId)
     normalizeSelection(setAccountInfoBatchTargetTableId)
     normalizeSelection(setAudioTargetTableId)
   }, [tableId, tableMetaList])
@@ -1753,17 +1751,16 @@ function App() {
       }
       let targetTableName = ''
       if (accountInfoColumnTargetTable === 'current') {
-        const selectedTableId = accountInfoColumnTargetTableId || tableId
-        if (!selectedTableId) {
+        if (!tableId) {
           setMessage(tr('无法获取写入表格'))
           return
         }
-        targetTableName = await resolveTableName(selectedTableId)
+        targetTableName = await resolveTableName(tableId)
         payload = {
           baseId,
           mode: 'column',
           targetTable: accountInfoColumnTargetTable,
-          tableId: selectedTableId,
+          tableId,
           tableName: targetTableName,
           sourceTableId: tableId,
           usernameFieldId: accountInfoUsernameField,
@@ -2712,20 +2709,9 @@ function App() {
         let targetTableName = ''
         let shouldUpdateSource = true
         if (accountInfoColumnTargetTable === 'current') {
-          const selectedTableId = accountInfoColumnTargetTableId || activeTable.id
-          if (!selectedTableId) {
-            setMessage(tr('无法获取写入表格'))
-            return
-          }
-          shouldUpdateSource = selectedTableId === activeTable.id
-          if (!shouldUpdateSource) {
-            const selectedTable = await bitable.base.getTableById(selectedTableId)
-            if (!selectedTable) {
-              setMessage(tr('无法获取写入表格'))
-              return
-            }
-            targetTable = selectedTable
-          }
+          const selectedTableId = activeTable.id
+          shouldUpdateSource = true
+          targetTable = activeTable
           targetTableName = await resolveTableNameById(selectedTableId)
         } else {
           let nextTableName = accountInfoColumnNewTableName
@@ -2753,6 +2739,11 @@ function App() {
         await refreshFields()
         let writers = await buildFieldWriters(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, fieldMetaList, accountInfoSelection)
         writers = await attachPrimaryNameWriter(targetTable, fieldMetaList, writers)
+        const isPrimaryField = (meta: { isPrimary?: boolean }) => Boolean(meta.isPrimary)
+        const fieldsToCheck = fieldMetaList
+          .filter(meta => accountInfoSelection[meta.name])
+          .filter(meta => meta.id !== accountInfoUsernameField && !isPrimaryField(meta))
+          .map(meta => meta.id)
         const appendToTargetTable = !shouldUpdateSource
         const seenAccounts = new Set<string>()
         if (appendToTargetTable) {
@@ -2790,6 +2781,7 @@ function App() {
         const applyRecordFields = async (recordId: string, record: Record<string, IOpenCellValue>) => {
           for (const [fieldId, value] of Object.entries(record)) {
             if (accountInfoStopRef.current) break
+            if (shouldUpdateSource && fieldId === accountInfoUsernameField) continue
             await targetTable.setCellValue(fieldId, recordId, value as IOpenCellValue)
           }
         }
@@ -2797,18 +2789,18 @@ function App() {
         // 检查记录是否有数据（用于判断是否跳过）- 仅当前表时有效，写入新表默认跳过检查
         const hasExistingData = async (record: { recordId: string; fields?: Record<string, IOpenCellValue> }): Promise<boolean> => {
           if (appendToTargetTable) return false
+          if (!fieldsToCheck.length) return false
 
           if (record.fields) {
-            for (const [fieldId, value] of Object.entries(record.fields)) {
-              if (fieldId === accountInfoUsernameField) continue
-              if (!isCellValueEmpty(value as IOpenCellValue)) return true
+            for (const fieldId of fieldsToCheck) {
+              const value = record.fields[fieldId] as IOpenCellValue
+              if (!isCellValueEmpty(value)) return true
             }
             return false
           }
 
-          for (const fieldMeta of fieldMetaList) {
-            if (fieldMeta.id === accountInfoUsernameField) continue
-            const value = await targetTable.getCellValue(fieldMeta.id, record.recordId)
+          for (const fieldId of fieldsToCheck) {
+            const value = await targetTable.getCellValue(fieldId, record.recordId)
             if (!isCellValueEmpty(value)) return true
           }
           return false
@@ -3912,8 +3904,6 @@ function App() {
           setAccountInfoOverwrite={setAccountInfoOverwrite}
           accountInfoColumnTargetTable={accountInfoColumnTargetTable}
           setAccountInfoColumnTargetTable={setAccountInfoColumnTargetTable}
-          accountInfoColumnTargetTableId={accountInfoColumnTargetTableId}
-          setAccountInfoColumnTargetTableId={setAccountInfoColumnTargetTableId}
           accountInfoColumnNewTableName={accountInfoColumnNewTableName}
           setAccountInfoColumnNewTableName={handleAccountInfoColumnNewTableNameChange}
           batchTargetTable={batchTargetTable}
