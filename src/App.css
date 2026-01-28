@@ -652,7 +652,15 @@ button:disabled {
   color: #1677ff;
 }
 
+.offline-status.active {
+  color: #52c41a;
+}
+
 .offline-status.queued {
+  color: #faad14;
+}
+
+.offline-status.paused {
   color: #faad14;
 }
 
@@ -681,6 +689,89 @@ button:disabled {
   color: #999;
 }
 
+.schedule-panel {
+  margin-top: 10px;
+}
+
+.schedule-form {
+  margin-top: 8px;
+}
+
+.schedule-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.schedule-cancel-btn {
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #d9d9d9;
+}
+
+.schedule-cancel-btn:hover {
+  background: #f0f0f0;
+  box-shadow: none;
+  transform: none;
+}
+
+.offline-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.offline-action-btn {
+  padding: 4px 10px;
+  height: 28px;
+  min-width: auto;
+  font-size: 12px;
+  background: #fff;
+  color: #1677ff;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+}
+
+.offline-action-btn:hover {
+  background: #f5f5f5;
+  box-shadow: none;
+  transform: none;
+}
+
+.offline-action-btn.danger {
+  color: #ff4d4f;
+  border-color: #ffccc7;
+  background: #fff1f0;
+}
+
+.offline-logs {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px dashed #e8e8e8;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.offline-log-block {
+  margin-top: 8px;
+}
+
+.offline-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.offline-log-item {
+  display: grid;
+  grid-template-columns: 130px 60px 1fr;
+  gap: 8px;
+  font-size: 12px;
+  color: #666;
+}
+
 .app.dark .offline-card {
   background: rgba(255, 255, 255, 0.04);
   border-color: #333;
@@ -697,6 +788,29 @@ button:disabled {
 .app.dark .offline-muted,
 .app.dark .offline-auth-tip.loading {
   color: #666;
+}
+
+.app.dark .schedule-cancel-btn {
+  background: #2f2f2f;
+  border-color: #444;
+  color: #ddd;
+}
+
+.app.dark .offline-action-btn {
+  background: #2b2b2b;
+  border-color: #444;
+  color: #8ab4ff;
+}
+
+.app.dark .offline-action-btn.danger {
+  background: #3a1e1e;
+  border-color: #5c2a2a;
+  color: #ff7875;
+}
+
+.app.dark .offline-logs {
+  background: #1f1f1f;
+  border-color: #444;
 }
 
 .field-tip {

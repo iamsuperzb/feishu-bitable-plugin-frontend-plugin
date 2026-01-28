@@ -1,7 +1,9 @@
 import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
+import ScheduleForm from './ScheduleForm'
+import type { OfflineScheduleConfig } from '../../types/offline'
 
 type TableTarget = 'current' | 'new'
-type AccountRunMode = 'online' | 'offline'
+type AccountRunMode = 'online' | 'offline' | 'schedule'
 
 interface OfflineTaskProgress {
   fetched?: number
@@ -48,6 +50,10 @@ interface AccountSectionProps {
   accountOfflineDetail: OfflineTaskDetail | null
   accountOfflineRunning: boolean
   accountOfflineStopping: boolean
+  accountScheduleCount: number
+  accountScheduleNextRunAt: string
+  accountScheduleLimitReached: boolean
+  accountScheduleSaving: boolean
   accountTargetTable: TableTarget
   accountNewTableName: string
   loading: boolean
@@ -63,6 +69,7 @@ interface AccountSectionProps {
   handleAccountFieldChange: (fieldName: string) => void
   writeAccountTikTokData: () => void
   stopCollection: () => void
+  onCreateAccountSchedule: (value: OfflineScheduleConfig) => void
 }
 
 const ACCOUNT_FIELD_NAMES = [
@@ -109,6 +116,10 @@ export default function AccountSection(props: AccountSectionProps) {
     accountOfflineDetail,
     accountOfflineRunning,
     accountOfflineStopping,
+    accountScheduleCount,
+    accountScheduleNextRunAt,
+    accountScheduleLimitReached,
+    accountScheduleSaving,
     accountTargetTable,
     accountNewTableName,
     loading,
@@ -123,14 +134,16 @@ export default function AccountSection(props: AccountSectionProps) {
     setAccountNewTableName,
     handleAccountFieldChange,
     writeAccountTikTokData,
-    stopCollection
+    stopCollection,
+    onCreateAccountSchedule
   } = props
 
   const showOnlineStop = isCollecting && collectType === 2
   const showOfflineStop = accountOfflineRunning
   const showStop = showOnlineStop || showOfflineStop
   const allowStart = !isCollecting && !accountOfflineRunning
-  const offlineBlocked = accountRunMode === 'offline' && (
+  const showScheduleForm = accountRunMode === 'schedule'
+  const offlineBlocked = (accountRunMode === 'offline' || accountRunMode === 'schedule') && (
     !accountBaseId.trim() || accountOfflineAuthStatus !== 'ready'
   )
   const stopInProgress = isStopping || accountOfflineStopping
@@ -249,6 +262,23 @@ export default function AccountSection(props: AccountSectionProps) {
                   </span>
                 </span>
               </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="accountRunMode"
+                  value="schedule"
+                  checked={accountRunMode === 'schedule'}
+                  onChange={() => setAccountRunMode('schedule')}
+                  disabled={isCollecting}
+                />
+                {tr('定时执行')}
+                <span className="help-tip align-right" onMouseEnter={adjustHelpTipWithinRoot}>
+                  <span className="help-icon">?</span>
+                  <span className="help-bubble">
+                    {tr('按设定时间自动执行')}
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
 
@@ -307,34 +337,63 @@ export default function AccountSection(props: AccountSectionProps) {
           )}
         </div>
 
-        {accountRunMode === 'offline' && offlineBlocked && (
+        {accountRunMode !== 'online' && offlineBlocked && (
           <div className="offline-auth-tip missing">
             {tr('请先在后台任务中心填写表格编号和授权码')}
           </div>
         )}
 
-        <div className="search-action">
-          {allowStart ? (
-            <>
+        {!showScheduleForm && (
+          <div className="search-action">
+            {allowStart ? (
               <button
                 onClick={writeAccountTikTokData}
                 disabled={loading || !username || accountQuotaInsufficient || offlineBlocked}
               >
                 {tr('开始采集')}
               </button>
-            </>
-          ) : (
-            showStop && (
-              <button
-                onClick={stopCollection}
-                className={`stop-button ${stopInProgress ? 'stopping' : ''}`}
-                disabled={stopInProgress}
-              >
-                {stopInProgress ? tr('正在停止...') : tr('停止采集')}
-              </button>
-            )
-          )}
-        </div>
+            ) : (
+              showStop && (
+                <button
+                  onClick={stopCollection}
+                  className={`stop-button ${stopInProgress ? 'stopping' : ''}`}
+                  disabled={stopInProgress}
+                >
+                  {stopInProgress ? tr('正在停止...') : tr('停止采集')}
+                </button>
+              )
+            )}
+          </div>
+        )}
+
+        {showScheduleForm && (
+          <div className="schedule-panel">
+            <div className="offline-meta">
+              {tr('已设置')} {accountScheduleCount} {tr('个定时任务')}
+            </div>
+            <div className="offline-meta">
+              {tr('下次执行')}: {formatTime(accountScheduleNextRunAt)}
+            </div>
+            <ScheduleForm
+              tr={tr}
+              disabled={offlineBlocked || accountScheduleSaving}
+              maxReached={accountScheduleLimitReached}
+              submitLabel={accountScheduleSaving ? tr('保存中...') : tr('创建定时任务')}
+              onSubmit={onCreateAccountSchedule}
+            />
+            {showStop && (
+              <div className="search-action">
+                <button
+                  onClick={stopCollection}
+                  className={`stop-button ${stopInProgress ? 'stopping' : ''}`}
+                  disabled={stopInProgress}
+                >
+                  {stopInProgress ? tr('正在停止...') : tr('停止采集')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div
           style={{
@@ -372,7 +431,7 @@ export default function AccountSection(props: AccountSectionProps) {
           </div>
         </div>
 
-        {(accountRunMode === 'offline' || accountOfflineTasks.length > 0) && (
+        {(accountRunMode !== 'online' || accountOfflineTasks.length > 0) && (
           <div className="sub-section">
             <h3>{tr('后台任务进度')}</h3>
             {(accountOfflineDetail || accountOfflineActiveTask) && (

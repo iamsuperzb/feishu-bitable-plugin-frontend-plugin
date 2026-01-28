@@ -614,3 +614,142 @@ export const stopOfflineTask = async (
     { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
   )
 }
+
+/**
+ * 定时任务列表
+ */
+export const fetchOfflineSchedules = async (
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/schedules/list`
+
+  return fetchFn(
+    apiUrl,
+    { method: 'GET', signal: options.signal },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 创建定时任务
+ */
+export const createOfflineSchedule = async (
+  payload: {
+    type: string
+    schedule: {
+      mode: string
+      startAt: string
+      endAt?: string
+      intervalDays?: number
+    }
+    payload: Record<string, unknown>
+  },
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/schedules/create`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 更新定时任务
+ */
+export const updateOfflineSchedule = async (
+  payload: {
+    scheduleId: string
+    status?: string
+    schedule?: {
+      mode: string
+      startAt: string
+      endAt?: string
+      intervalDays?: number
+    }
+  },
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/schedules/update`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 删除定时任务
+ */
+export const deleteOfflineSchedule = async (
+  scheduleId: string,
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/schedules/delete`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scheduleId }),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 定时任务日志
+ */
+export const fetchOfflineScheduleLogs = async (
+  scheduleId: string,
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/schedules/logs?scheduleId=${encodeURIComponent(scheduleId)}`
+
+  return fetchFn(
+    apiUrl,
+    { method: 'GET', signal: options.signal },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}
+
+/**
+ * 立即执行一次定时任务
+ */
+export const runOfflineScheduleOnce = async (
+  scheduleId: string,
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/schedules/run-once`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scheduleId }),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.QUOTA }
+  )
+}

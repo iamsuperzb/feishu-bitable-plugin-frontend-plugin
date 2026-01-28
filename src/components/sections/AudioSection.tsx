@@ -1,9 +1,11 @@
 import type { IFieldMeta } from '@lark-base-open/js-sdk'
 import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
+import ScheduleForm from './ScheduleForm'
+import type { OfflineScheduleConfig } from '../../types/offline'
 
 type TableTarget = 'current' | 'new'
 type AudioMode = 'column' | 'batch'
-type AudioRunMode = 'online' | 'offline'
+type AudioRunMode = 'online' | 'offline' | 'schedule'
 
 interface OfflineTaskProgress {
   fetched?: number
@@ -45,6 +47,10 @@ interface AudioSectionProps {
   audioOfflineDetail: OfflineTaskDetail | null
   audioOfflineRunning: boolean
   audioOfflineStopping: boolean
+  audioScheduleCount: number
+  audioScheduleNextRunAt: string
+  audioScheduleLimitReached: boolean
+  audioScheduleSaving: boolean
   audioMode: AudioMode
   setAudioMode: (val: AudioMode) => void
   audioVideoUrlField: string
@@ -63,6 +69,7 @@ interface AudioSectionProps {
   handleAudioStop: () => void
   setAudioRunMode: (val: AudioRunMode) => void
   setAudioTargetTableId: (val: string) => void
+  onCreateAudioSchedule: (value: OfflineScheduleConfig) => void
 }
 
 export default function AudioSection(props: AudioSectionProps) {
@@ -82,6 +89,10 @@ export default function AudioSection(props: AudioSectionProps) {
     audioOfflineDetail,
     audioOfflineRunning,
     audioOfflineStopping,
+    audioScheduleCount,
+    audioScheduleNextRunAt,
+    audioScheduleLimitReached,
+    audioScheduleSaving,
     audioMode,
     setAudioMode,
     audioVideoUrlField,
@@ -99,11 +110,13 @@ export default function AudioSection(props: AudioSectionProps) {
     handleAudioExtract,
     handleAudioStop,
     setAudioRunMode,
-    setAudioTargetTableId
+    setAudioTargetTableId,
+    onCreateAudioSchedule
   } = props
 
   const allowStart = !audioLoading && !audioOfflineRunning
-  const offlineBlocked = audioRunMode === 'offline' && (
+  const showScheduleForm = audioRunMode === 'schedule'
+  const offlineBlocked = (audioRunMode === 'offline' || audioRunMode === 'schedule') && (
     !audioBaseId.trim() || audioOfflineAuthStatus !== 'ready'
   )
   const stopInProgress = audioOfflineStopping
@@ -208,6 +221,23 @@ export default function AudioSection(props: AudioSectionProps) {
                   <span className="help-icon">?</span>
                   <span className="help-bubble">
                     {tr('关闭页面或关闭插件也会继续运行')}
+                  </span>
+                </span>
+              </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="audioRunMode"
+                  value="schedule"
+                  checked={audioRunMode === 'schedule'}
+                  onChange={() => setAudioRunMode('schedule')}
+                  disabled={audioLoading}
+                />
+                {tr('定时执行')}
+                <span className="help-tip align-right" onMouseEnter={adjustHelpTipWithinRoot}>
+                  <span className="help-icon">?</span>
+                  <span className="help-bubble">
+                    {tr('按设定时间自动执行')}
                   </span>
                 </span>
               </label>
@@ -334,35 +364,66 @@ export default function AudioSection(props: AudioSectionProps) {
           )}
         </div>
 
-        {audioRunMode === 'offline' && offlineBlocked && (
+        {audioRunMode !== 'online' && offlineBlocked && (
           <div className="offline-auth-tip missing">
             {tr('请先在后台任务中心填写表格编号和授权码')}
           </div>
         )}
 
-        <div className="search-action">
-          {allowStart ? (
-            <button
-              onClick={handleAudioExtract}
-              disabled={
-                (audioMode === 'column' && (!audioVideoUrlField || (audioTargetTable === 'current' && !audioOutputField))) ||
-                (audioMode === 'batch' && !audioBatchInput.trim()) ||
-                audioQuotaInsufficient ||
-                offlineBlocked
-              }
-            >
-              {tr('开始提取')}
-            </button>
-          ) : (
-            <button
-              onClick={handleAudioStop}
-              className="stop-button"
-              disabled={stopInProgress}
-            >
-              {stopInProgress ? tr('正在停止...') : tr('停止提取')}
-            </button>
-          )}
-        </div>
+        {!showScheduleForm && (
+          <div className="search-action">
+            {allowStart ? (
+              <button
+                onClick={handleAudioExtract}
+                disabled={
+                  (audioMode === 'column' && (!audioVideoUrlField || (audioTargetTable === 'current' && !audioOutputField))) ||
+                  (audioMode === 'batch' && !audioBatchInput.trim()) ||
+                  audioQuotaInsufficient ||
+                  offlineBlocked
+                }
+              >
+                {tr('开始提取')}
+              </button>
+            ) : (
+              <button
+                onClick={handleAudioStop}
+                className="stop-button"
+                disabled={stopInProgress}
+              >
+                {stopInProgress ? tr('正在停止...') : tr('停止提取')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {showScheduleForm && (
+          <div className="schedule-panel">
+            <div className="offline-meta">
+              {tr('已设置')} {audioScheduleCount} {tr('个定时任务')}
+            </div>
+            <div className="offline-meta">
+              {tr('下次执行')}: {formatTime(audioScheduleNextRunAt)}
+            </div>
+            <ScheduleForm
+              tr={tr}
+              disabled={offlineBlocked || audioScheduleSaving}
+              maxReached={audioScheduleLimitReached}
+              submitLabel={audioScheduleSaving ? tr('保存中...') : tr('创建定时任务')}
+              onSubmit={onCreateAudioSchedule}
+            />
+            {!allowStart && (
+              <div className="search-action">
+                <button
+                  onClick={handleAudioStop}
+                  className="stop-button"
+                  disabled={stopInProgress}
+                >
+                  {stopInProgress ? tr('正在停止...') : tr('停止提取')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div
           style={{
@@ -379,7 +440,7 @@ export default function AudioSection(props: AudioSectionProps) {
           {audioQuotaInsufficient ? '⚠️' : 'ℹ️'} {audioQuotaInsufficient ? tr('quota.audio.insufficient') : tr('quota.audio.tip')}
         </div>
 
-        {(audioRunMode === 'offline' || audioOfflineTasks.length > 0) && (
+        {(audioRunMode !== 'online' || audioOfflineTasks.length > 0) && (
           <div className="sub-section">
             <h3>{tr('后台任务进度')}</h3>
             {(audioOfflineDetail || audioOfflineActiveTask) && (

@@ -1,7 +1,9 @@
 import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
+import ScheduleForm from './ScheduleForm'
+import type { OfflineScheduleConfig } from '../../types/offline'
 
 type TableTarget = 'current' | 'new'
-type KeywordRunMode = 'online' | 'offline'
+type KeywordRunMode = 'online' | 'offline' | 'schedule'
 type KeywordSortType = '1' | '3' | 'all'
 
 interface OfflineTaskProgress {
@@ -58,6 +60,10 @@ interface KeywordSectionProps {
   keywordOfflineDetail: OfflineTaskDetail | null
   keywordOfflineRunning: boolean
   keywordOfflineStopping: boolean
+  keywordScheduleCount: number
+  keywordScheduleNextRunAt: string
+  keywordScheduleLimitReached: boolean
+  keywordScheduleSaving: boolean
   setQuery: (val: string) => void
   setVtime: (val: string) => void
   setRegion: (val: string) => void
@@ -69,6 +75,7 @@ interface KeywordSectionProps {
   handleKeywordFieldChange: (fieldName: string) => void
   writeKeywordTikTokData: () => void
   stopCollection: () => void
+  onCreateKeywordSchedule: (value: OfflineScheduleConfig) => void
 }
 
 const KEYWORD_FIELD_NAMES = [
@@ -123,6 +130,10 @@ export default function KeywordSection(props: KeywordSectionProps) {
     keywordOfflineDetail,
     keywordOfflineRunning,
     keywordOfflineStopping,
+    keywordScheduleCount,
+    keywordScheduleNextRunAt,
+    keywordScheduleLimitReached,
+    keywordScheduleSaving,
     setQuery,
     setVtime,
     setRegion,
@@ -133,14 +144,16 @@ export default function KeywordSection(props: KeywordSectionProps) {
     setKeywordNewTableName,
     handleKeywordFieldChange,
     writeKeywordTikTokData,
-    stopCollection
+    stopCollection,
+    onCreateKeywordSchedule
   } = props
 
   const showOnlineStop = isCollecting && collectType === 1
   const showOfflineStop = keywordOfflineRunning
   const showStop = showOnlineStop || showOfflineStop
   const allowStart = !isCollecting && !keywordOfflineRunning
-  const offlineBlocked = keywordRunMode === 'offline' && (
+  const showScheduleForm = keywordRunMode === 'schedule'
+  const offlineBlocked = (keywordRunMode === 'offline' || keywordRunMode === 'schedule') && (
     !keywordBaseId.trim() || keywordOfflineAuthStatus !== 'ready'
   )
   const stopInProgress = isStopping || keywordOfflineStopping
@@ -287,6 +300,23 @@ export default function KeywordSection(props: KeywordSectionProps) {
                   </span>
                 </span>
               </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="keywordRunMode"
+                  value="schedule"
+                  checked={keywordRunMode === 'schedule'}
+                  onChange={() => setKeywordRunMode('schedule')}
+                  disabled={isCollecting}
+                />
+                {tr('定时执行')}
+                <span className="help-tip align-right" onMouseEnter={adjustHelpTipWithinRoot}>
+                  <span className="help-icon">?</span>
+                  <span className="help-bubble">
+                    {tr('按设定时间自动执行')}
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
 
@@ -345,34 +375,63 @@ export default function KeywordSection(props: KeywordSectionProps) {
           )}
         </div>
 
-        {keywordRunMode === 'offline' && offlineBlocked && (
+        {keywordRunMode !== 'online' && offlineBlocked && (
           <div className="offline-auth-tip missing">
             {tr('请先在后台任务中心填写表格编号和授权码')}
           </div>
         )}
 
-        <div className="search-action">
-          {allowStart ? (
-            <>
+        {!showScheduleForm && (
+          <div className="search-action">
+            {allowStart ? (
               <button
                 onClick={writeKeywordTikTokData}
                 disabled={loading || !query || keywordQuotaInsufficient || offlineBlocked}
               >
                 {tr('开始采集')}
               </button>
-            </>
-          ) : (
-            showStop && (
-              <button
-                onClick={stopCollection}
-                className={`stop-button ${stopInProgress ? 'stopping' : ''}`}
-                disabled={stopInProgress}
-              >
-                {stopInProgress ? tr('正在停止...') : tr('停止采集')}
-              </button>
-            )
-          )}
-        </div>
+            ) : (
+              showStop && (
+                <button
+                  onClick={stopCollection}
+                  className={`stop-button ${stopInProgress ? 'stopping' : ''}`}
+                  disabled={stopInProgress}
+                >
+                  {stopInProgress ? tr('正在停止...') : tr('停止采集')}
+                </button>
+              )
+            )}
+          </div>
+        )}
+
+        {showScheduleForm && (
+          <div className="schedule-panel">
+            <div className="offline-meta">
+              {tr('已设置')} {keywordScheduleCount} {tr('个定时任务')}
+            </div>
+            <div className="offline-meta">
+              {tr('下次执行')}: {formatTime(keywordScheduleNextRunAt)}
+            </div>
+            <ScheduleForm
+              tr={tr}
+              disabled={offlineBlocked || keywordScheduleSaving}
+              maxReached={keywordScheduleLimitReached}
+              submitLabel={keywordScheduleSaving ? tr('保存中...') : tr('创建定时任务')}
+              onSubmit={onCreateKeywordSchedule}
+            />
+            {showStop && (
+              <div className="search-action">
+                <button
+                  onClick={stopCollection}
+                  className={`stop-button ${stopInProgress ? 'stopping' : ''}`}
+                  disabled={stopInProgress}
+                >
+                  {stopInProgress ? tr('正在停止...') : tr('停止采集')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div
           style={{
@@ -410,7 +469,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
           </div>
         </div>
 
-        {(keywordRunMode === 'offline' || keywordOfflineTasks.length > 0) && (
+        {(keywordRunMode !== 'online' || keywordOfflineTasks.length > 0) && (
           <div className="sub-section">
             <h3>{tr('后台任务进度')}</h3>
             {(keywordOfflineDetail || keywordOfflineActiveTask) && (

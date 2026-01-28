@@ -1,9 +1,11 @@
 import type { IFieldMeta } from '@lark-base-open/js-sdk'
 import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
+import ScheduleForm from './ScheduleForm'
+import type { OfflineScheduleConfig } from '../../types/offline'
 
 type TableTarget = 'current' | 'new'
 type AccountInfoMode = 'column' | 'batch'
-type AccountInfoRunMode = 'online' | 'offline'
+type AccountInfoRunMode = 'online' | 'offline' | 'schedule'
 
 interface OfflineTaskProgress {
   fetched?: number
@@ -44,6 +46,10 @@ interface AccountInfoSectionProps {
   accountInfoOfflineDetail: OfflineTaskDetail | null
   accountInfoOfflineRunning: boolean
   accountInfoOfflineStopping: boolean
+  accountInfoScheduleCount: number
+  accountInfoScheduleNextRunAt: string
+  accountInfoScheduleLimitReached: boolean
+  accountInfoScheduleSaving: boolean
   accountInfoMode: AccountInfoMode
   setAccountInfoMode: (val: AccountInfoMode) => void
   accountInfoUsernameField: string
@@ -72,6 +78,7 @@ interface AccountInfoSectionProps {
   handleAccountInfoFetch: () => void
   handleAccountInfoStop: () => void
   setAccountInfoRunMode: (val: AccountInfoRunMode) => void
+  onCreateAccountInfoSchedule: (value: OfflineScheduleConfig) => void
 }
 
 const ACCOUNT_INFO_FIELD_NAMES = [
@@ -108,6 +115,10 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
     accountInfoOfflineDetail,
     accountInfoOfflineRunning,
     accountInfoOfflineStopping,
+    accountInfoScheduleCount,
+    accountInfoScheduleNextRunAt,
+    accountInfoScheduleLimitReached,
+    accountInfoScheduleSaving,
     accountInfoMode,
     setAccountInfoMode,
     accountInfoUsernameField,
@@ -135,11 +146,13 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
     handleAccountInfoFieldChange,
     handleAccountInfoFetch,
     handleAccountInfoStop,
-    setAccountInfoRunMode
+    setAccountInfoRunMode,
+    onCreateAccountInfoSchedule
   } = props
 
   const allowStart = !accountInfoLoading && !accountInfoOfflineRunning
-  const offlineBlocked = accountInfoRunMode === 'offline' && (
+  const showScheduleForm = accountInfoRunMode === 'schedule'
+  const offlineBlocked = (accountInfoRunMode === 'offline' || accountInfoRunMode === 'schedule') && (
     !accountInfoBaseId.trim() || accountInfoOfflineAuthStatus !== 'ready'
   )
   const stopInProgress = accountInfoOfflineStopping
@@ -245,6 +258,23 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
                   <span className="help-icon">?</span>
                   <span className="help-bubble">
                     {tr('关闭页面或关闭插件也会继续运行')}
+                  </span>
+                </span>
+              </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="accountInfoRunMode"
+                  value="schedule"
+                  checked={accountInfoRunMode === 'schedule'}
+                  onChange={() => setAccountInfoRunMode('schedule')}
+                  disabled={accountInfoLoading}
+                />
+                {tr('定时执行')}
+                <span className="help-tip align-right" onMouseEnter={adjustHelpTipWithinRoot}>
+                  <span className="help-icon">?</span>
+                  <span className="help-bubble">
+                    {tr('按设定时间自动执行')}
                   </span>
                 </span>
               </label>
@@ -407,15 +437,15 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
           )}
         </div>
 
-        {accountInfoRunMode === 'offline' && offlineBlocked && (
+        {accountInfoRunMode !== 'online' && offlineBlocked && (
           <div className="offline-auth-tip missing">
             {tr('请先在后台任务中心填写表格编号和授权码')}
           </div>
         )}
 
-        <div className="search-action">
-          {allowStart ? (
-            <>
+        {!showScheduleForm && (
+          <div className="search-action">
+            {allowStart ? (
               <button
                 onClick={handleAccountInfoFetch}
                 disabled={
@@ -427,17 +457,46 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
               >
                 {tr('开始获取')}
               </button>
-            </>
-          ) : (
-            <button
-              onClick={handleAccountInfoStop}
-              className="stop-button"
-              disabled={stopInProgress}
-            >
-              {stopInProgress ? tr('正在停止...') : tr('停止获取')}
-            </button>
-          )}
-        </div>
+            ) : (
+              <button
+                onClick={handleAccountInfoStop}
+                className="stop-button"
+                disabled={stopInProgress}
+              >
+                {stopInProgress ? tr('正在停止...') : tr('停止获取')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {showScheduleForm && (
+          <div className="schedule-panel">
+            <div className="offline-meta">
+              {tr('已设置')} {accountInfoScheduleCount} {tr('个定时任务')}
+            </div>
+            <div className="offline-meta">
+              {tr('下次执行')}: {formatTime(accountInfoScheduleNextRunAt)}
+            </div>
+            <ScheduleForm
+              tr={tr}
+              disabled={offlineBlocked || accountInfoScheduleSaving}
+              maxReached={accountInfoScheduleLimitReached}
+              submitLabel={accountInfoScheduleSaving ? tr('保存中...') : tr('创建定时任务')}
+              onSubmit={onCreateAccountInfoSchedule}
+            />
+            {!allowStart && (
+              <div className="search-action">
+                <button
+                  onClick={handleAccountInfoStop}
+                  className="stop-button"
+                  disabled={stopInProgress}
+                >
+                  {stopInProgress ? tr('正在停止...') : tr('停止获取')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div
           style={{
@@ -475,7 +534,7 @@ export default function AccountInfoSection(props: AccountInfoSectionProps) {
           </div>
         </div>
 
-        {(accountInfoRunMode === 'offline' || accountInfoOfflineTasks.length > 0) && (
+        {(accountInfoRunMode !== 'online' || accountInfoOfflineTasks.length > 0) && (
           <div className="sub-section">
             <h3>{tr('后台任务进度')}</h3>
             {(accountInfoOfflineDetail || accountInfoOfflineActiveTask) && (

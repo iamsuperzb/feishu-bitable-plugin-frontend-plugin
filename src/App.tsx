@@ -48,15 +48,21 @@ import {
   fetchCoverOriginal,
   fetchKeywordVideos,
   fetchOfflineAuthorizationStatus,
+  fetchOfflineScheduleLogs,
+  fetchOfflineSchedules,
   fetchOfflineTaskDetail,
   fetchOfflineTasks,
   getApiBase,
+  createOfflineSchedule,
+  deleteOfflineSchedule,
+  runOfflineScheduleOnce,
   saveOfflineAuthorization,
   startAccountInfoOfflineTask as startAccountInfoOfflineTaskRequest,
   startAccountOfflineTask as startAccountOfflineTaskRequest,
   startAudioOfflineTask as startAudioOfflineTaskRequest,
   startKeywordOfflineTask as startKeywordOfflineTaskRequest,
   stopOfflineTask as stopOfflineTaskRequest,
+  updateOfflineSchedule,
   TIMEOUT_CONFIG
 } from './services/tiktokApi'
 import { commerceFromAweme } from './services/commerceDetection'
@@ -67,6 +73,11 @@ import {
 } from './services/recordBuilder'
 import type { FieldConfig, UserIdentity } from './types/bitable'
 import type { CommerceResult } from './services/commerceDetection'
+import type {
+  OfflineScheduleConfig,
+  OfflineScheduleLogs,
+  OfflineScheduleSummary
+} from './types/offline'
 
 // Anchor 项类型（App.tsx 本地使用）
 interface AnchorItem {
@@ -121,6 +132,11 @@ interface OfflineTaskDetail extends OfflineTaskSummary {
   }
   stopReason?: string
 }
+
+type KeywordOfflinePayload = Parameters<typeof startKeywordOfflineTaskRequest>[0]
+type AccountOfflinePayload = Parameters<typeof startAccountOfflineTaskRequest>[0]
+type AccountInfoOfflinePayload = Parameters<typeof startAccountInfoOfflineTaskRequest>[0]
+type AudioOfflinePayload = Parameters<typeof startAudioOfflineTaskRequest>[0]
 
 const pickCoverUrl = (video?: VideoCoverSource): string => {
   const candidates = [
@@ -446,6 +462,24 @@ const normalizeKeywordVtime = (value: string): string => {
   return KEYWORD_VTIME_OPTIONS.has(value) ? value : DEFAULT_KEYWORD_VTIME
 }
 
+const normalizeScheduleType = (value?: string) => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'account_info' || normalized === 'accountinfo') return 'account-info'
+  return normalized
+}
+
+const resolveNextScheduleTime = (items: OfflineScheduleSummary[]) => {
+  const nextItems = items
+    .filter(item => item.status === 'active' && item.nextRunAt)
+    .slice()
+    .sort((a, b) => {
+      const aTime = new Date(a.nextRunAt || '').getTime()
+      const bTime = new Date(b.nextRunAt || '').getTime()
+      return aTime - bTime
+    })
+  return nextItems[0]?.nextRunAt || ''
+}
+
 const buildKeywordVtimeKey = (tableId: string) => `${KEYWORD_VTIME_KEY_PREFIX}${tableId}`
 
 const detectBaseIdFromUrl = () => {
@@ -489,7 +523,7 @@ function App() {
   const [keywordSortType, setKeywordSortType] = useState<KeywordSortType>(
     normalizeKeywordSortType(readLocalValue(KEYWORD_SORT_TYPE_KEY))
   )
-  const [keywordRunMode, setKeywordRunMode] = useState<'online' | 'offline'>('online')
+  const [keywordRunMode, setKeywordRunMode] = useState<'online' | 'offline' | 'schedule'>('online')
   const [keywordBaseId, setKeywordBaseId] = useState(readLocalValue(OFFLINE_KEYWORD_BASE_ID_KEY))
   const [keywordOfflineAuthTokenInput, setKeywordOfflineAuthTokenInput] = useState('')
   const [keywordOfflineHasAuth, setKeywordOfflineHasAuth] = useState(false)
@@ -503,26 +537,35 @@ function App() {
   const [offlineCenterOpen, setOfflineCenterOpen] = useState(false)
   const keywordOfflineHadRunningRef = useRef(false)
   const keywordVtimeTableRef = useRef('')
+  const [offlineSchedules, setOfflineSchedules] = useState<OfflineScheduleSummary[]>([])
+  const [offlineScheduleLoading, setOfflineScheduleLoading] = useState(false)
+  const [offlineScheduleLogs, setOfflineScheduleLogs] = useState<Record<string, OfflineScheduleLogs>>({})
+  const [offlineScheduleLogsLoading, setOfflineScheduleLogsLoading] = useState<Record<string, boolean>>({})
+  const [offlineScheduleActionLoading, setOfflineScheduleActionLoading] = useState<Record<string, boolean>>({})
+  const [keywordScheduleSaving, setKeywordScheduleSaving] = useState(false)
 
   // 账号视频搜索相关状态
   const [username, setUsername] = useState('')
   const [userRegion, setUserRegion] = useState('US')
-  const [accountRunMode, setAccountRunMode] = useState<'online' | 'offline'>('online')
+  const [accountRunMode, setAccountRunMode] = useState<'online' | 'offline' | 'schedule'>('online')
   const [accountOfflineDetail, setAccountOfflineDetail] = useState<OfflineTaskDetail | null>(null)
   const [accountOfflineStopping, setAccountOfflineStopping] = useState(false)
   const [accountOfflineActiveTaskId, setAccountOfflineActiveTaskId] = useState('')
+  const [accountScheduleSaving, setAccountScheduleSaving] = useState(false)
 
   // 账号信息后台状态
-  const [accountInfoRunMode, setAccountInfoRunMode] = useState<'online' | 'offline'>('online')
+  const [accountInfoRunMode, setAccountInfoRunMode] = useState<'online' | 'offline' | 'schedule'>('online')
   const [accountInfoOfflineDetail, setAccountInfoOfflineDetail] = useState<OfflineTaskDetail | null>(null)
   const [accountInfoOfflineStopping, setAccountInfoOfflineStopping] = useState(false)
   const [accountInfoOfflineActiveTaskId, setAccountInfoOfflineActiveTaskId] = useState('')
+  const [accountInfoScheduleSaving, setAccountInfoScheduleSaving] = useState(false)
 
   // 音频后台状态
-  const [audioRunMode, setAudioRunMode] = useState<'online' | 'offline'>('online')
+  const [audioRunMode, setAudioRunMode] = useState<'online' | 'offline' | 'schedule'>('online')
   const [audioOfflineDetail, setAudioOfflineDetail] = useState<OfflineTaskDetail | null>(null)
   const [audioOfflineStopping, setAudioOfflineStopping] = useState(false)
   const [audioOfflineActiveTaskId, setAudioOfflineActiveTaskId] = useState('')
+  const [audioScheduleSaving, setAudioScheduleSaving] = useState(false)
 
   // UI 状态管理
   const {
@@ -960,6 +1003,46 @@ function App() {
     }
   }, [fetchWithIdentity, userIdentity])
 
+  const loadOfflineSchedules = useCallback(async (withLoading = false) => {
+    if (!userIdentity) return
+    if (withLoading) setOfflineScheduleLoading(true)
+    try {
+      const response = await fetchOfflineSchedules(fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.QUOTA
+      })
+      if (!response.ok) {
+        return
+      }
+      const data = await response.json()
+      const schedules = Array.isArray(data?.schedules) ? data.schedules : []
+      setOfflineSchedules(schedules)
+    } catch (error) {
+      console.error('读取定时任务失败:', error)
+    } finally {
+      if (withLoading) setOfflineScheduleLoading(false)
+    }
+  }, [fetchWithIdentity, userIdentity])
+
+  const loadOfflineScheduleLogs = useCallback(async (scheduleId: string) => {
+    if (!userIdentity || !scheduleId) return
+    setOfflineScheduleLogsLoading(prev => ({ ...prev, [scheduleId]: true }))
+    try {
+      const response = await fetchOfflineScheduleLogs(scheduleId, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.QUOTA
+      })
+      if (!response.ok) {
+        return
+      }
+      const data = await response.json()
+      const logs = data?.logs || { messages: [], runs: [] }
+      setOfflineScheduleLogs(prev => ({ ...prev, [scheduleId]: logs }))
+    } catch (error) {
+      console.error('读取定时任务日志失败:', error)
+    } finally {
+      setOfflineScheduleLogsLoading(prev => ({ ...prev, [scheduleId]: false }))
+    }
+  }, [fetchWithIdentity, userIdentity])
+
   const fetchOfflineTaskDetailById = useCallback(async (taskId: string) => {
     if (!userIdentity || !taskId) return null
     try {
@@ -1018,6 +1101,45 @@ function App() {
     [offlineTasks]
   )
 
+  const keywordSchedules = useMemo(
+    () => offlineSchedules.filter(item => normalizeScheduleType(item.type) === 'keyword'),
+    [offlineSchedules]
+  )
+  const accountSchedules = useMemo(
+    () => offlineSchedules.filter(item => normalizeScheduleType(item.type) === 'account'),
+    [offlineSchedules]
+  )
+  const accountInfoSchedules = useMemo(
+    () => offlineSchedules.filter(item => normalizeScheduleType(item.type) === 'account-info'),
+    [offlineSchedules]
+  )
+  const audioSchedules = useMemo(
+    () => offlineSchedules.filter(item => normalizeScheduleType(item.type) === 'audio'),
+    [offlineSchedules]
+  )
+
+  const keywordScheduleNextRunAt = useMemo(
+    () => resolveNextScheduleTime(keywordSchedules),
+    [keywordSchedules]
+  )
+  const accountScheduleNextRunAt = useMemo(
+    () => resolveNextScheduleTime(accountSchedules),
+    [accountSchedules]
+  )
+  const accountInfoScheduleNextRunAt = useMemo(
+    () => resolveNextScheduleTime(accountInfoSchedules),
+    [accountInfoSchedules]
+  )
+  const audioScheduleNextRunAt = useMemo(
+    () => resolveNextScheduleTime(audioSchedules),
+    [audioSchedules]
+  )
+
+  const keywordScheduleLimitReached = keywordSchedules.length >= 5
+  const accountScheduleLimitReached = accountSchedules.length >= 5
+  const accountInfoScheduleLimitReached = accountInfoSchedules.length >= 5
+  const audioScheduleLimitReached = audioSchedules.length >= 5
+
   const keywordOfflineRunningTask = useMemo(
     () => keywordOfflineTaskList.find(task => task.status === 'running' || task.status === 'queued') || null,
     [keywordOfflineTaskList]
@@ -1059,12 +1181,14 @@ function App() {
   )
 
   const offlineCenterTasks = useMemo(() => offlineTasks, [offlineTasks])
+  const offlineCenterSchedules = useMemo(() => offlineSchedules, [offlineSchedules])
 
   useEffect(() => {
     if (!userIdentity) return
     loadOfflineAuthStatus()
     loadKeywordOfflineTasks(true)
-  }, [loadKeywordOfflineTasks, loadOfflineAuthStatus, userIdentity])
+    loadOfflineSchedules(true)
+  }, [loadKeywordOfflineTasks, loadOfflineAuthStatus, loadOfflineSchedules, userIdentity])
 
   useEffect(() => {
     if (!keywordOfflineTaskList.length) {
@@ -1158,11 +1282,29 @@ function App() {
       || activeSection === 'audio'
       || offlineCenterOpen
     if (!shouldPoll) return
+    const shouldPollSchedules = offlineCenterOpen
+      || keywordRunMode === 'schedule'
+      || accountRunMode === 'schedule'
+      || accountInfoRunMode === 'schedule'
+      || audioRunMode === 'schedule'
     const timer = window.setInterval(() => {
       loadKeywordOfflineTasks()
+      if (shouldPollSchedules) {
+        loadOfflineSchedules()
+      }
     }, 5000)
     return () => window.clearInterval(timer)
-  }, [activeSection, loadKeywordOfflineTasks, offlineCenterOpen, userIdentity])
+  }, [
+    activeSection,
+    accountInfoRunMode,
+    accountRunMode,
+    audioRunMode,
+    keywordRunMode,
+    loadKeywordOfflineTasks,
+    loadOfflineSchedules,
+    offlineCenterOpen,
+    userIdentity
+  ])
 
   useEffect(() => {
     if (!keywordOfflineActiveTaskId) return
@@ -1588,24 +1730,24 @@ function App() {
     typeof remaining === 'number' ? remaining : '-'
   )
 
-  const startKeywordOfflineTask = async () => {
+  const resolveKeywordOfflinePayload = async (): Promise<KeywordOfflinePayload | null> => {
     const trimmedKeyword = query.trim()
     if (!trimmedKeyword) {
       setMessage(tr('请输入关键词'))
-      return
+      return null
     }
     if (quotaUnavailable) {
       setMessage(tr('配额未配置，请联系管理员后再试'))
-      return
+      return null
     }
     const baseId = keywordBaseId.trim()
     if (!baseId) {
       setMessage(tr('请填写表格编号'))
-      return
+      return null
     }
     if (!keywordOfflineHasAuth) {
       setMessage(tr('请先完成授权'))
-      return
+      return null
     }
 
     let targetTableId = ''
@@ -1614,7 +1756,7 @@ function App() {
       const selectedTableId = keywordTargetTableId || tableId
       if (!selectedTableId) {
         setMessage(tr('无法获取写入表格'))
-        return
+        return null
       }
       targetTableId = selectedTableId
       targetTableName = await resolveTableNameById(selectedTableId)
@@ -1633,19 +1775,288 @@ function App() {
 
     const selectedFields = resolveSelectedFieldList(keywordSelectedFields, KEYWORD_REQUIRED_FIELDS)
 
+    return {
+      keyword: trimmedKeyword,
+      region: region || 'US',
+      vtime,
+      sort_type: keywordSortType,
+      baseId,
+      targetTable: keywordTargetTable,
+      tableId: targetTableId,
+      tableName: targetTableName,
+      selectedFields
+    }
+  }
+
+  const resolveAccountOfflinePayload = async (): Promise<AccountOfflinePayload | null> => {
+    const baseId = keywordBaseId.trim()
+    const trimmedUsername = username.trim()
+    if (!trimmedUsername) {
+      setMessage(tr('请输入账号名称'))
+      return null
+    }
+    if (quotaUnavailable) {
+      setMessage(tr('配额未配置，请联系管理员后再试'))
+      return null
+    }
+    if (!baseId) {
+      setMessage(tr('请填写表格编号'))
+      return null
+    }
+    if (!keywordOfflineHasAuth) {
+      setMessage(tr('请先完成授权'))
+      return null
+    }
+
+    let targetTableId = ''
+    let targetTableName = ''
+    if (accountTargetTable === 'current') {
+      const selectedTableId = accountTargetTableId || tableId
+      if (!selectedTableId) {
+        setMessage(tr('无法获取写入表格'))
+        return null
+      }
+      targetTableId = selectedTableId
+      targetTableName = await resolveTableNameById(selectedTableId)
+    } else {
+      let nextTableName = accountNewTableName
+      if (accountTableNameAuto) {
+        nextTableName = trimmedUsername
+          ? getDefaultAccountTableName(trimmedUsername)
+          : getDefaultAccountTableName()
+        setAccountNewTableName(nextTableName)
+      }
+      const safeName = sanitizeTableName(nextTableName)
+      if (safeName !== nextTableName) setAccountNewTableName(safeName)
+      targetTableName = safeName
+    }
+
+    const selectedFields = resolveSelectedFieldList(accountSelectedFields, ACCOUNT_REQUIRED_FIELDS)
+
+    return {
+      username: trimmedUsername,
+      region: userRegion || 'US',
+      baseId,
+      targetTable: accountTargetTable,
+      tableId: targetTableId,
+      tableName: targetTableName,
+      selectedFields
+    }
+  }
+
+  const resolveAccountInfoOfflinePayload = async (): Promise<AccountInfoOfflinePayload | null> => {
+    const baseId = keywordBaseId.trim()
+    if (!baseId) {
+      setMessage(tr('请填写表格编号'))
+      return null
+    }
+    if (quotaUnavailable) {
+      setMessage(tr('配额未配置，请联系管理员后再试'))
+      return null
+    }
+    if (!keywordOfflineHasAuth) {
+      setMessage(tr('请先完成授权'))
+      return null
+    }
+
+    const selectedFields = resolveSelectedFieldList(accountInfoSelectedFields, ACCOUNT_INFO_REQUIRED_FIELDS)
+    const resolveTableName = async (targetId: string) => (
+      await resolveTableNameById(targetId)
+    )
+
+    if (accountInfoMode === 'column') {
+      if (!accountInfoUsernameField) {
+        setMessage(tr('请选择账号列'))
+        return null
+      }
+      if (!tableId) {
+        setMessage(tr('无法获取当前表格'))
+        return null
+      }
+      let targetTableName = ''
+      if (accountInfoColumnTargetTable === 'current') {
+        const selectedTableId = accountInfoColumnTargetTableId || tableId
+        if (!selectedTableId) {
+          setMessage(tr('无法获取写入表格'))
+          return null
+        }
+        targetTableName = await resolveTableName(selectedTableId)
+        return {
+          baseId,
+          mode: 'column',
+          targetTable: accountInfoColumnTargetTable,
+          tableId: selectedTableId,
+          tableName: targetTableName,
+          sourceTableId: tableId,
+          usernameFieldId: accountInfoUsernameField,
+          overwrite: accountInfoOverwrite,
+          selectedFields
+        }
+      }
+      const safeName = sanitizeTableName(accountInfoColumnNewTableName || getDefaultAccountInfoTableName())
+      if (safeName !== accountInfoColumnNewTableName) setAccountInfoColumnNewTableName(safeName)
+      targetTableName = safeName
+      return {
+        baseId,
+        mode: 'column',
+        targetTable: accountInfoColumnTargetTable,
+        tableId: '',
+        tableName: targetTableName,
+        sourceTableId: tableId,
+        usernameFieldId: accountInfoUsernameField,
+        overwrite: accountInfoOverwrite,
+        selectedFields
+      }
+    }
+
+    const names = Array.from(
+      new Set(
+        accountInfoBatchInput
+          .split(/[\n,\r]+/)
+          .map(item => extractAccountName(item))
+          .filter(Boolean)
+      )
+    )
+    if (!names.length) {
+      setMessage(tr('请输入账号名称'))
+      return null
+    }
+    if (batchTargetTable === 'current' && !tableId) {
+      setMessage(tr('无法获取当前表格'))
+      return null
+    }
+    let targetTableName = ''
+    if (batchTargetTable === 'current') {
+      const selectedTableId = accountInfoBatchTargetTableId || tableId
+      if (!selectedTableId) {
+        setMessage(tr('无法获取写入表格'))
+        return null
+      }
+      targetTableName = await resolveTableName(selectedTableId)
+      return {
+        baseId,
+        mode: 'batch',
+        targetTable: batchTargetTable,
+        tableId: selectedTableId,
+        tableName: targetTableName,
+        batchUsernames: names,
+        selectedFields
+      }
+    }
+    const safeName = sanitizeTableName(newTableName || getDefaultAccountInfoTableName())
+    if (safeName !== newTableName) setNewTableName(safeName)
+    targetTableName = safeName
+    return {
+      baseId,
+      mode: 'batch',
+      targetTable: batchTargetTable,
+      tableId: '',
+      tableName: targetTableName,
+      batchUsernames: names,
+      selectedFields
+    }
+  }
+
+  const resolveAudioOfflinePayload = async (): Promise<AudioOfflinePayload | null> => {
+    const baseId = keywordBaseId.trim()
+    if (!baseId) {
+      setMessage(tr('请填写表格编号'))
+      return null
+    }
+    if (quotaUnavailable) {
+      setMessage(tr('配额未配置，请联系管理员后再试'))
+      return null
+    }
+    if (!keywordOfflineHasAuth) {
+      setMessage(tr('请先完成授权'))
+      return null
+    }
+
+    const resolveTableName = async (targetId: string) => (
+      await resolveTableNameById(targetId)
+    )
+
+    if (audioMode === 'column') {
+      if (!audioVideoUrlField) {
+        setMessage(tr('请选择视频链接列'))
+        return null
+      }
+      if (!tableId) {
+        setMessage(tr('无法获取当前表格'))
+        return null
+      }
+      let targetTableName = ''
+      if (audioTargetTable === 'current') {
+        const selectedTableId = audioTargetTableId || tableId
+        if (!selectedTableId) {
+          setMessage(tr('无法获取写入表格'))
+          return null
+        }
+        const shouldUpdateSource = selectedTableId === tableId
+        if (shouldUpdateSource && !audioOutputField) {
+          setMessage(tr('请选择写入列'))
+          return null
+        }
+        targetTableName = await resolveTableName(selectedTableId)
+        return {
+          baseId,
+          mode: 'column',
+          targetTable: audioTargetTable,
+          tableId: selectedTableId,
+          tableName: targetTableName,
+          sourceTableId: tableId,
+          videoFieldId: audioVideoUrlField,
+          outputFieldId: shouldUpdateSource ? audioOutputField : ''
+        }
+      }
+      const safeName = sanitizeTableName(audioNewTableName || getDefaultAudioTableName())
+      if (safeName !== audioNewTableName) setAudioNewTableName(safeName)
+      targetTableName = safeName
+      return {
+        baseId,
+        mode: 'column',
+        targetTable: audioTargetTable,
+        tableId: '',
+        tableName: targetTableName,
+        sourceTableId: tableId,
+        videoFieldId: audioVideoUrlField,
+        outputFieldId: ''
+      }
+    }
+
+    const urls = Array.from(
+      new Set(
+        audioBatchInput
+          .split(/[,\n\r]+/)
+          .map(item => item.trim())
+          .filter(Boolean)
+      )
+    )
+    if (!urls.length) {
+      setMessage(tr('请输入视频链接'))
+      return null
+    }
+    const safeName = sanitizeTableName(audioNewTableName || getDefaultAudioTableName())
+    if (safeName !== audioNewTableName) setAudioNewTableName(safeName)
+    return {
+      baseId,
+      mode: 'batch',
+      targetTable: 'new',
+      tableId: '',
+      tableName: safeName,
+      batchUrls: urls
+    }
+  }
+
+  const startKeywordOfflineTask = async () => {
+    const payload = await resolveKeywordOfflinePayload()
+    if (!payload) return
+
     try {
       setMessage(tr('任务已进入后台，请稍后查看进度'))
-      const response = await startKeywordOfflineTaskRequest({
-        keyword: trimmedKeyword,
-        region: region || 'US',
-        vtime,
-        sort_type: keywordSortType,
-        baseId,
-        targetTable: keywordTargetTable,
-        tableId: targetTableId,
-        tableName: targetTableName,
-        selectedFields
-      }, fetchWithIdentity, { timeout: TIMEOUT_CONFIG.SEARCH })
+      const response = await startKeywordOfflineTaskRequest(payload, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.SEARCH
+      })
 
       if (!response.ok) {
         const text = await response.text().catch(() => '')
@@ -1667,61 +2078,14 @@ function App() {
   }
 
   const startAccountOfflineTask = async () => {
-    const baseId = keywordBaseId.trim()
-    const trimmedUsername = username.trim()
-    if (!trimmedUsername) {
-      setMessage(tr('请输入账号名称'))
-      return
-    }
-    if (quotaUnavailable) {
-      setMessage(tr('配额未配置，请联系管理员后再试'))
-      return
-    }
-    if (!baseId) {
-      setMessage(tr('请填写表格编号'))
-      return
-    }
-    if (!keywordOfflineHasAuth) {
-      setMessage(tr('请先完成授权'))
-      return
-    }
-
-    let targetTableId = ''
-    let targetTableName = ''
-    if (accountTargetTable === 'current') {
-      const selectedTableId = accountTargetTableId || tableId
-      if (!selectedTableId) {
-        setMessage(tr('无法获取写入表格'))
-        return
-      }
-      targetTableId = selectedTableId
-      targetTableName = await resolveTableNameById(selectedTableId)
-    } else {
-      let nextTableName = accountNewTableName
-      if (accountTableNameAuto) {
-        nextTableName = trimmedUsername
-          ? getDefaultAccountTableName(trimmedUsername)
-          : getDefaultAccountTableName()
-        setAccountNewTableName(nextTableName)
-      }
-      const safeName = sanitizeTableName(nextTableName)
-      if (safeName !== nextTableName) setAccountNewTableName(safeName)
-      targetTableName = safeName
-    }
-
-    const selectedFields = resolveSelectedFieldList(accountSelectedFields, ACCOUNT_REQUIRED_FIELDS)
+    const payload = await resolveAccountOfflinePayload()
+    if (!payload) return
 
     try {
       setMessage(tr('任务已进入后台，请稍后查看进度'))
-      const response = await startAccountOfflineTaskRequest({
-        username: trimmedUsername,
-        region: userRegion || 'US',
-        baseId,
-        targetTable: accountTargetTable,
-        tableId: targetTableId,
-        tableName: targetTableName,
-        selectedFields
-      }, fetchWithIdentity, { timeout: TIMEOUT_CONFIG.SEARCH })
+      const response = await startAccountOfflineTaskRequest(payload, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.SEARCH
+      })
 
       if (!response.ok) {
         const text = await response.text().catch(() => '')
@@ -1743,126 +2107,7 @@ function App() {
   }
 
   const startAccountInfoOfflineTask = async () => {
-    const baseId = keywordBaseId.trim()
-    if (!baseId) {
-      setMessage(tr('请填写表格编号'))
-      return
-    }
-    if (quotaUnavailable) {
-      setMessage(tr('配额未配置，请联系管理员后再试'))
-      return
-    }
-    if (!keywordOfflineHasAuth) {
-      setMessage(tr('请先完成授权'))
-      return
-    }
-
-    const selectedFields = resolveSelectedFieldList(accountInfoSelectedFields, ACCOUNT_INFO_REQUIRED_FIELDS)
-
-    const resolveTableName = async (targetId: string) => (
-      await resolveTableNameById(targetId)
-    )
-
-    let payload: Parameters<typeof startAccountInfoOfflineTaskRequest>[0] | null = null
-
-    if (accountInfoMode === 'column') {
-      if (!accountInfoUsernameField) {
-        setMessage(tr('请选择账号列'))
-        return
-      }
-      if (!tableId) {
-        setMessage(tr('无法获取当前表格'))
-        return
-      }
-      let targetTableName = ''
-      if (accountInfoColumnTargetTable === 'current') {
-        if (!tableId) {
-          setMessage(tr('无法获取写入表格'))
-          return
-        }
-        const selectedTableId = accountInfoColumnTargetTableId || tableId
-        if (!selectedTableId) {
-          setMessage(tr('无法获取写入表格'))
-          return
-        }
-        targetTableName = await resolveTableName(selectedTableId)
-        payload = {
-          baseId,
-          mode: 'column',
-          targetTable: accountInfoColumnTargetTable,
-          tableId: selectedTableId,
-          tableName: targetTableName,
-          sourceTableId: tableId,
-          usernameFieldId: accountInfoUsernameField,
-          overwrite: accountInfoOverwrite,
-          selectedFields
-        }
-      } else {
-        const safeName = sanitizeTableName(accountInfoColumnNewTableName || getDefaultAccountInfoTableName())
-        if (safeName !== accountInfoColumnNewTableName) setAccountInfoColumnNewTableName(safeName)
-        targetTableName = safeName
-        payload = {
-          baseId,
-          mode: 'column',
-          targetTable: accountInfoColumnTargetTable,
-          tableId: '',
-          tableName: targetTableName,
-          sourceTableId: tableId,
-          usernameFieldId: accountInfoUsernameField,
-          overwrite: accountInfoOverwrite,
-          selectedFields
-        }
-      }
-    } else {
-      const names = Array.from(
-        new Set(
-          accountInfoBatchInput
-            .split(/[\n,\r]+/)
-            .map(item => extractAccountName(item))
-            .filter(Boolean)
-        )
-      )
-      if (!names.length) {
-        setMessage(tr('请输入账号名称'))
-        return
-      }
-      if (batchTargetTable === 'current' && !tableId) {
-        setMessage(tr('无法获取当前表格'))
-        return
-      }
-      let targetTableName = ''
-      if (batchTargetTable === 'current') {
-        const selectedTableId = accountInfoBatchTargetTableId || tableId
-        if (!selectedTableId) {
-          setMessage(tr('无法获取写入表格'))
-          return
-        }
-        targetTableName = await resolveTableName(selectedTableId)
-        payload = {
-          baseId,
-          mode: 'batch',
-          targetTable: batchTargetTable,
-          tableId: selectedTableId,
-          tableName: targetTableName,
-          batchUsernames: names,
-          selectedFields
-        }
-      } else {
-        const safeName = sanitizeTableName(newTableName || getDefaultAccountInfoTableName())
-        if (safeName !== newTableName) setNewTableName(safeName)
-        targetTableName = safeName
-        payload = {
-          baseId,
-          mode: 'batch',
-          targetTable: batchTargetTable,
-          tableId: '',
-          tableName: targetTableName,
-          batchUsernames: names,
-          selectedFields
-        }
-      }
-    }
-
+    const payload = await resolveAccountInfoOfflinePayload()
     if (!payload) return
 
     try {
@@ -1889,98 +2134,7 @@ function App() {
   }
 
   const startAudioOfflineTask = async () => {
-    const baseId = keywordBaseId.trim()
-    if (!baseId) {
-      setMessage(tr('请填写表格编号'))
-      return
-    }
-    if (quotaUnavailable) {
-      setMessage(tr('配额未配置，请联系管理员后再试'))
-      return
-    }
-    if (!keywordOfflineHasAuth) {
-      setMessage(tr('请先完成授权'))
-      return
-    }
-
-    const resolveTableName = async (targetId: string) => (
-      await resolveTableNameById(targetId)
-    )
-
-    let payload: Parameters<typeof startAudioOfflineTaskRequest>[0] | null = null
-
-    if (audioMode === 'column') {
-      if (!audioVideoUrlField) {
-        setMessage(tr('请选择视频链接列'))
-        return
-      }
-      if (!tableId) {
-        setMessage(tr('无法获取当前表格'))
-        return
-      }
-      let targetTableName = ''
-      if (audioTargetTable === 'current') {
-        const selectedTableId = audioTargetTableId || tableId
-        if (!selectedTableId) {
-          setMessage(tr('无法获取写入表格'))
-          return
-        }
-        const shouldUpdateSource = selectedTableId === tableId
-        if (shouldUpdateSource && !audioOutputField) {
-          setMessage(tr('请选择写入列'))
-          return
-        }
-        targetTableName = await resolveTableName(selectedTableId)
-        payload = {
-          baseId,
-          mode: 'column',
-          targetTable: audioTargetTable,
-          tableId: selectedTableId,
-          tableName: targetTableName,
-          sourceTableId: tableId,
-          videoFieldId: audioVideoUrlField,
-          outputFieldId: shouldUpdateSource ? audioOutputField : ''
-        }
-      } else {
-        const safeName = sanitizeTableName(audioNewTableName || getDefaultAudioTableName())
-        if (safeName !== audioNewTableName) setAudioNewTableName(safeName)
-        targetTableName = safeName
-        payload = {
-          baseId,
-          mode: 'column',
-          targetTable: audioTargetTable,
-          tableId: '',
-          tableName: targetTableName,
-          sourceTableId: tableId,
-          videoFieldId: audioVideoUrlField,
-          outputFieldId: ''
-        }
-      }
-    } else {
-      const urls = Array.from(
-        new Set(
-          audioBatchInput
-            .split(/[,\n\r]+/)
-            .map(item => item.trim())
-            .filter(Boolean)
-        )
-      )
-      if (!urls.length) {
-        setMessage(tr('请输入视频链接'))
-        return
-      }
-      const safeName = sanitizeTableName(audioNewTableName || getDefaultAudioTableName())
-      if (safeName !== audioNewTableName) setAudioNewTableName(safeName)
-      payload = {
-        baseId,
-        mode: 'batch',
-        targetTable: 'new',
-        tableId: '',
-        tableName: safeName,
-        batchUrls: urls
-      }
-    }
-
+    const payload = await resolveAudioOfflinePayload()
     if (!payload) return
 
     try {
@@ -2006,10 +2160,170 @@ function App() {
     }
   }
 
+  const createScheduleTask = async (
+    type: string,
+    payload: Record<string, unknown>,
+    schedule: OfflineScheduleConfig,
+    setSaving: (value: boolean) => void
+  ) => {
+    if (!userIdentity) return
+    setSaving(true)
+    try {
+      const response = await createOfflineSchedule({
+        type,
+        schedule,
+        payload
+      }, fetchWithIdentity, { timeout: TIMEOUT_CONFIG.QUOTA })
+      if (!response.ok) {
+        const text = await response.text().catch(() => '')
+        if (response.status === 429) {
+          setMessage(tr('定时任务数量已达上限'))
+          return
+        }
+        console.error('定时任务创建失败:', text)
+        setMessage(tr('定时任务创建失败，请稍后重试'))
+        return
+      }
+      await loadOfflineSchedules(true)
+      setMessage(tr('定时任务已创建'))
+    } catch (error) {
+      console.error('定时任务创建失败:', error)
+      setMessage(tr('定时任务创建失败，请稍后重试'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCreateKeywordSchedule = async (schedule: OfflineScheduleConfig) => {
+    const payload = await resolveKeywordOfflinePayload()
+    if (!payload) return
+    await createScheduleTask('keyword', payload, schedule, setKeywordScheduleSaving)
+  }
+
+  const handleCreateAccountSchedule = async (schedule: OfflineScheduleConfig) => {
+    const payload = await resolveAccountOfflinePayload()
+    if (!payload) return
+    await createScheduleTask('account', payload, schedule, setAccountScheduleSaving)
+  }
+
+  const handleCreateAccountInfoSchedule = async (schedule: OfflineScheduleConfig) => {
+    const payload = await resolveAccountInfoOfflinePayload()
+    if (!payload) return
+    await createScheduleTask('account-info', payload, schedule, setAccountInfoScheduleSaving)
+  }
+
+  const handleCreateAudioSchedule = async (schedule: OfflineScheduleConfig) => {
+    const payload = await resolveAudioOfflinePayload()
+    if (!payload) return
+    await createScheduleTask('audio', payload, schedule, setAudioScheduleSaving)
+  }
+
+  const handleUpdateSchedule = async (scheduleId: string, schedule: OfflineScheduleConfig) => {
+    if (!userIdentity) return
+    setOfflineScheduleActionLoading(prev => ({ ...prev, [scheduleId]: true }))
+    try {
+      const response = await updateOfflineSchedule({
+        scheduleId,
+        schedule
+      }, fetchWithIdentity, { timeout: TIMEOUT_CONFIG.QUOTA })
+      if (!response.ok) {
+        const text = await response.text().catch(() => '')
+        console.error('定时任务更新失败:', text)
+        setMessage(tr('定时任务更新失败，请稍后重试'))
+        return
+      }
+      await loadOfflineSchedules(true)
+      setMessage(tr('定时任务已更新'))
+    } catch (error) {
+      console.error('定时任务更新失败:', error)
+      setMessage(tr('定时任务更新失败，请稍后重试'))
+    } finally {
+      setOfflineScheduleActionLoading(prev => ({ ...prev, [scheduleId]: false }))
+    }
+  }
+
+  const handleToggleScheduleStatus = async (scheduleId: string, status: 'active' | 'paused') => {
+    if (!userIdentity) return
+    setOfflineScheduleActionLoading(prev => ({ ...prev, [scheduleId]: true }))
+    try {
+      const response = await updateOfflineSchedule({
+        scheduleId,
+        status
+      }, fetchWithIdentity, { timeout: TIMEOUT_CONFIG.QUOTA })
+      if (!response.ok) {
+        const text = await response.text().catch(() => '')
+        console.error('定时任务状态更新失败:', text)
+        setMessage(tr('定时任务更新失败，请稍后重试'))
+        return
+      }
+      await loadOfflineSchedules(true)
+    } catch (error) {
+      console.error('定时任务状态更新失败:', error)
+      setMessage(tr('定时任务更新失败，请稍后重试'))
+    } finally {
+      setOfflineScheduleActionLoading(prev => ({ ...prev, [scheduleId]: false }))
+    }
+  }
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!userIdentity) return
+    setOfflineScheduleActionLoading(prev => ({ ...prev, [scheduleId]: true }))
+    try {
+      const response = await deleteOfflineSchedule(scheduleId, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.QUOTA
+      })
+      if (!response.ok) {
+        const text = await response.text().catch(() => '')
+        console.error('定时任务删除失败:', text)
+        setMessage(tr('定时任务删除失败，请稍后重试'))
+        return
+      }
+      await loadOfflineSchedules(true)
+      setMessage(tr('定时任务已删除'))
+    } catch (error) {
+      console.error('定时任务删除失败:', error)
+      setMessage(tr('定时任务删除失败，请稍后重试'))
+    } finally {
+      setOfflineScheduleActionLoading(prev => ({ ...prev, [scheduleId]: false }))
+    }
+  }
+
+  const handleRunScheduleOnce = async (scheduleId: string) => {
+    if (!userIdentity) return
+    setOfflineScheduleActionLoading(prev => ({ ...prev, [scheduleId]: true }))
+    try {
+      const response = await runOfflineScheduleOnce(scheduleId, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.QUOTA
+      })
+      if (!response.ok) {
+        const text = await response.text().catch(() => '')
+        if (response.status === 429) {
+          setMessage(tr('任务数量已达上限，请稍后再试'))
+          return
+        }
+        console.error('定时任务执行失败:', text)
+        setMessage(tr('定时任务执行失败，请稍后重试'))
+        return
+      }
+      await loadKeywordOfflineTasks(true)
+      await loadOfflineSchedules(true)
+      setMessage(tr('定时任务已开始执行'))
+    } catch (error) {
+      console.error('定时任务执行失败:', error)
+      setMessage(tr('定时任务执行失败，请稍后重试'))
+    } finally {
+      setOfflineScheduleActionLoading(prev => ({ ...prev, [scheduleId]: false }))
+    }
+  }
+
   // 写入关键词搜索 TikTok 数据
   const writeKeywordTikTokData = async () => {
     if (keywordRunMode === 'offline') {
       await startKeywordOfflineTask()
+      return
+    }
+    if (keywordRunMode === 'schedule') {
+      setMessage(tr('请使用定时执行'))
       return
     }
     if (!query) return
@@ -2341,6 +2655,10 @@ function App() {
   const writeAccountTikTokData = async () => {
     if (accountRunMode === 'offline') {
       await startAccountOfflineTask()
+      return
+    }
+    if (accountRunMode === 'schedule') {
+      setMessage(tr('请使用定时执行'))
       return
     }
     const resolvedUsername = extractAccountName(username)
@@ -2686,6 +3004,10 @@ function App() {
     if (accountInfoLoading) return
     if (accountInfoRunMode === 'offline') {
       await startAccountInfoOfflineTask()
+      return
+    }
+    if (accountInfoRunMode === 'schedule') {
+      setMessage(tr('请使用定时执行'))
       return
     }
     if (quotaUnavailable) {
@@ -3113,6 +3435,10 @@ function App() {
   const handleAudioExtract = async () => {
     if (audioRunMode === 'offline') {
       await startAudioOfflineTask()
+      return
+    }
+    if (audioRunMode === 'schedule') {
+      setMessage(tr('请使用定时执行'))
       return
     }
     if (quotaUnavailable) {
@@ -3878,6 +4204,10 @@ function App() {
           keywordOfflineDetail={keywordOfflineDetail}
           keywordOfflineRunning={keywordOfflineRunning}
           keywordOfflineStopping={keywordOfflineStopping}
+          keywordScheduleCount={keywordSchedules.length}
+          keywordScheduleNextRunAt={keywordScheduleNextRunAt}
+          keywordScheduleLimitReached={keywordScheduleLimitReached}
+          keywordScheduleSaving={keywordScheduleSaving}
           setQuery={setQuery}
           setVtime={setVtime}
           setRegion={setRegion}
@@ -3889,6 +4219,7 @@ function App() {
           handleKeywordFieldChange={handleKeywordFieldChange}
           writeKeywordTikTokData={writeKeywordTikTokData}
           stopCollection={stopKeywordCollection}
+          onCreateKeywordSchedule={handleCreateKeywordSchedule}
         />
 
         <AccountSection
@@ -3911,6 +4242,10 @@ function App() {
           accountOfflineDetail={accountOfflineDetail}
           accountOfflineRunning={accountOfflineRunning}
           accountOfflineStopping={accountOfflineStopping}
+          accountScheduleCount={accountSchedules.length}
+          accountScheduleNextRunAt={accountScheduleNextRunAt}
+          accountScheduleLimitReached={accountScheduleLimitReached}
+          accountScheduleSaving={accountScheduleSaving}
           accountTargetTable={accountTargetTable}
           accountNewTableName={accountNewTableName}
           loading={loading}
@@ -3926,6 +4261,7 @@ function App() {
           handleAccountFieldChange={handleAccountFieldChange}
           writeAccountTikTokData={writeAccountTikTokData}
           stopCollection={stopAccountCollection}
+          onCreateAccountSchedule={handleCreateAccountSchedule}
         />
 
         <AccountInfoSection
@@ -3943,6 +4279,10 @@ function App() {
           accountInfoOfflineDetail={accountInfoOfflineDetail}
           accountInfoOfflineRunning={accountInfoOfflineRunning}
           accountInfoOfflineStopping={accountInfoOfflineStopping}
+          accountInfoScheduleCount={accountInfoSchedules.length}
+          accountInfoScheduleNextRunAt={accountInfoScheduleNextRunAt}
+          accountInfoScheduleLimitReached={accountInfoScheduleLimitReached}
+          accountInfoScheduleSaving={accountInfoScheduleSaving}
           accountInfoMode={accountInfoMode}
           setAccountInfoMode={setAccountInfoMode}
           accountInfoUsernameField={accountInfoUsernameField}
@@ -3971,6 +4311,7 @@ function App() {
           handleAccountInfoFetch={handleAccountInfoFetch}
           handleAccountInfoStop={handleAccountInfoStop}
           setAccountInfoRunMode={setAccountInfoRunMode}
+          onCreateAccountInfoSchedule={handleCreateAccountInfoSchedule}
         />
 
         <AudioSection
@@ -3989,6 +4330,10 @@ function App() {
           audioOfflineDetail={audioOfflineDetail}
           audioOfflineRunning={audioOfflineRunning}
           audioOfflineStopping={audioOfflineStopping}
+          audioScheduleCount={audioSchedules.length}
+          audioScheduleNextRunAt={audioScheduleNextRunAt}
+          audioScheduleLimitReached={audioScheduleLimitReached}
+          audioScheduleSaving={audioScheduleSaving}
           audioMode={audioMode}
           setAudioMode={setAudioMode}
           audioVideoUrlField={audioVideoUrlField}
@@ -4007,6 +4352,7 @@ function App() {
           handleAudioStop={stopAudioExtraction}
           setAudioRunMode={setAudioRunMode}
           setAudioTargetTableId={setAudioTargetTableId}
+          onCreateAudioSchedule={handleCreateAudioSchedule}
         />
 
         <OfflineTaskCenterSection
@@ -4015,6 +4361,16 @@ function App() {
           onToggle={() => setOfflineCenterOpen(prev => !prev)}
           tasks={offlineCenterTasks}
           loading={keywordOfflineLoading}
+          schedules={offlineCenterSchedules}
+          scheduleLoading={offlineScheduleLoading}
+          scheduleLogs={offlineScheduleLogs}
+          scheduleLogsLoading={offlineScheduleLogsLoading}
+          scheduleActionLoading={offlineScheduleActionLoading}
+          onLoadScheduleLogs={loadOfflineScheduleLogs}
+          onToggleScheduleStatus={handleToggleScheduleStatus}
+          onDeleteSchedule={handleDeleteSchedule}
+          onRunScheduleOnce={handleRunScheduleOnce}
+          onUpdateSchedule={handleUpdateSchedule}
           baseId={keywordBaseId}
           onBaseIdChange={setKeywordBaseId}
           authTokenInput={keywordOfflineAuthTokenInput}
