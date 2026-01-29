@@ -18,7 +18,7 @@ import type { FetchOptions, FetchWithIdentity } from '../types/tiktok'
  *
  * @returns API 基础 URL（移除末尾斜杠）
  */
-const DEFAULT_API_BASE_URL = 'http://feishutokapi-feishubitablepluginbackends-ebf9cb-76-13-20-158.traefik.me'
+const DEFAULT_API_BASE_URL = 'https://feishu-bitable-plugin-backend-service-dev.virlysocial.com'
 
 export const getApiBase = (): string => {
   const rawApiBase = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
