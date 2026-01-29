@@ -10,6 +10,7 @@ import {
 } from '@lark-base-open/js-sdk'
 import './App.css'
 import KeywordSection from './components/sections/KeywordSection'
+import HashtagSection from './components/sections/HashtagSection'
 import AccountSection from './components/sections/AccountSection'
 import AccountInfoSection from './components/sections/AccountInfoSection'
 import AudioSection from './components/sections/AudioSection'
@@ -24,6 +25,7 @@ import {
   getDefaultAccountInfoTableName,
   getDefaultAccountTableName,
   getDefaultAudioTableName,
+  getDefaultHashtagTableName,
   getDefaultKeywordTableName,
   sanitizeTableName,
   sleep
@@ -46,6 +48,8 @@ import {
   fetchAccountVideos,
   fetchCoverAsJpg,
   fetchCoverOriginal,
+  fetchHashtagPosts,
+  fetchHashtagSearch,
   fetchKeywordVideos,
   fetchOfflineAuthorizationStatus,
   fetchOfflineScheduleLogs,
@@ -60,6 +64,7 @@ import {
   startAccountInfoOfflineTask as startAccountInfoOfflineTaskRequest,
   startAccountOfflineTask as startAccountOfflineTaskRequest,
   startAudioOfflineTask as startAudioOfflineTaskRequest,
+  startHashtagOfflineTask as startHashtagOfflineTaskRequest,
   startKeywordOfflineTask as startKeywordOfflineTaskRequest,
   stopOfflineTask as stopOfflineTaskRequest,
   updateOfflineSchedule,
@@ -67,6 +72,7 @@ import {
 } from './services/tiktokApi'
 import { commerceFromAweme } from './services/commerceDetection'
 import {
+  buildHashtagRecord,
   buildKeywordRecord,
   buildAccountRecord,
   buildAccountInfoRecord
@@ -99,6 +105,11 @@ interface VideoCoverSource {
 
 type KeywordSortType = '1' | '3' | 'all'
 
+type HashtagVideoItem = Parameters<typeof buildHashtagRecord>[0] & {
+  coverUrl?: string
+  awemeId?: string
+}
+
 type OfflineTaskStatus = 'queued' | 'running' | 'completed' | 'stopped'
 
 interface OfflineTaskProgress {
@@ -116,6 +127,7 @@ interface OfflineTaskSummary {
   progress?: OfflineTaskProgress
   createdAt?: string
   updatedAt?: string
+  hashtag?: string
   keyword?: string
   username?: string
   tableName?: string
@@ -123,6 +135,7 @@ interface OfflineTaskSummary {
 
 interface OfflineTaskDetail extends OfflineTaskSummary {
   payload?: {
+    hashtag?: string
     keyword?: string
     tableName?: string
     tableId?: string
@@ -134,6 +147,7 @@ interface OfflineTaskDetail extends OfflineTaskSummary {
 }
 
 type KeywordOfflinePayload = Parameters<typeof startKeywordOfflineTaskRequest>[0]
+type HashtagOfflinePayload = Parameters<typeof startHashtagOfflineTaskRequest>[0]
 type AccountOfflinePayload = Parameters<typeof startAccountOfflineTaskRequest>[0]
 type AccountInfoOfflinePayload = Parameters<typeof startAccountInfoOfflineTaskRequest>[0]
 type AudioOfflinePayload = Parameters<typeof startAudioOfflineTaskRequest>[0]
@@ -233,6 +247,21 @@ interface SearchItemData {
   }
 }
 
+interface HashtagSearchItem {
+  challenge_info?: {
+    cid?: string
+    id?: string
+    hashtag_id?: string
+    cha_name?: string
+    title?: string
+    name?: string
+  }
+}
+
+interface HashtagSearchResponse {
+  challenge_list?: HashtagSearchItem[]
+}
+
 interface UserVideoData {
   desc: string;
   create_time: number;
@@ -264,6 +293,33 @@ interface UserVideoData {
     bc_label_test_text?: string;
   };
   commerce?: CommerceResult;
+}
+
+const extractHashtagItems = (data: HashtagSearchResponse | null | undefined) => {
+  if (!data || !Array.isArray(data.challenge_list)) return []
+  return data.challenge_list
+    .map(item => item?.challenge_info)
+    .filter(Boolean)
+}
+
+const getHashtagId = (item?: HashtagSearchItem['challenge_info']) => {
+  if (!item) return ''
+  return item.cid || item.id || item.hashtag_id || ''
+}
+
+const getHashtagName = (item?: HashtagSearchItem['challenge_info']) => {
+  if (!item) return ''
+  return item.cha_name || item.title || item.name || ''
+}
+
+const extractHashtagPosts = (data: unknown): unknown[] => {
+  if (!data || typeof data !== 'object') return []
+  const payload = data as Record<string, unknown>
+  const listA = payload.aweme_list
+  const listB = payload.awemeList
+  if (Array.isArray(listA)) return listA
+  if (Array.isArray(listB)) return listB
+  return []
 }
 
 interface AwemeItem {
@@ -316,6 +372,11 @@ interface AwemeItem {
   };
 }
 
+type HashtagRawItem = {
+  aweme_info?: Partial<AwemeItem>;
+  region?: string;
+} & Record<string, unknown>
+
 interface AccountInfoResponse {
   username: string;
   accountName: string;
@@ -359,6 +420,31 @@ const KEYWORD_FIELD_CONFIGS: FieldConfig[] = [
 ];
 
 const KEYWORD_REQUIRED_FIELDS = new Set(['关键词', '视频链接'])
+
+const HASHTAG_FIELD_CONFIGS: FieldConfig[] = [
+  { field_name: 'hashtag', type: FieldType.Text },
+  { field_name: '发布时间', type: FieldType.DateTime },
+  { field_name: '视频链接', type: FieldType.Url },
+  { field_name: '视频封面', type: FieldType.Attachment },
+  { field_name: '视频播放量', type: FieldType.Number },
+  { field_name: '点赞数量', type: FieldType.Number },
+  { field_name: '评论数量', type: FieldType.Number },
+  { field_name: '分享数量', type: FieldType.Number },
+  { field_name: '收藏数量', type: FieldType.Number },
+  { field_name: '视频互动率', type: FieldType.Number },
+  { field_name: '账号名称', type: FieldType.Text },
+  { field_name: '视频标题', type: FieldType.Text },
+  { field_name: '视频发布国家', type: FieldType.Text },
+  { field_name: '视频下载链接', type: FieldType.Url },
+  { field_name: '是否带货', type: FieldType.Checkbox },
+  { field_name: '带货产品链接', type: FieldType.Url },
+  { field_name: '带货产品链接（全部）', type: FieldType.Text },
+  { field_name: '带货原因', type: FieldType.Text },
+  { field_name: '带货产品数量', type: FieldType.Text },
+  { field_name: '带货产品信息', type: FieldType.Text }
+]
+
+const HASHTAG_REQUIRED_FIELDS = new Set(['hashtag', '视频链接'])
 
 const ACCOUNT_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '视频标题', type: FieldType.Text },  // 主字段：视频标题（Text类型）
@@ -480,6 +566,18 @@ const resolveNextScheduleTime = (items: OfflineScheduleSummary[]) => {
   return nextItems[0]?.nextRunAt || ''
 }
 
+const resolveNextSchedule = (items: OfflineScheduleSummary[]) => {
+  const nextItems = items
+    .filter(item => item.status === 'active' && item.nextRunAt)
+    .slice()
+    .sort((a, b) => {
+      const aTime = new Date(a.nextRunAt || '').getTime()
+      const bTime = new Date(b.nextRunAt || '').getTime()
+      return aTime - bTime
+    })
+  return nextItems[0] || null
+}
+
 const buildKeywordVtimeKey = (tableId: string) => `${KEYWORD_VTIME_KEY_PREFIX}${tableId}`
 
 const detectBaseIdFromUrl = () => {
@@ -543,6 +641,41 @@ function App() {
   const [offlineScheduleLogsLoading, setOfflineScheduleLogsLoading] = useState<Record<string, boolean>>({})
   const [offlineScheduleActionLoading, setOfflineScheduleActionLoading] = useState<Record<string, boolean>>({})
   const [keywordScheduleSaving, setKeywordScheduleSaving] = useState(false)
+
+  // hashtag 监控相关状态
+  const [hashtagQuery, setHashtagQuery] = useState('')
+  const [hashtagRegion, setHashtagRegion] = useState('US')
+  const [hashtagRunMode, setHashtagRunMode] = useState<'online' | 'offline' | 'schedule'>('online')
+  const [hashtagTargetTable, setHashtagTargetTable] = useState<'current' | 'new'>('new')
+  const [hashtagTargetTableId, setHashtagTargetTableId] = useState('')
+  const [hashtagNewTableName, setHashtagNewTableName] = useState(getDefaultHashtagTableName())
+  const [hashtagTableNameAuto, setHashtagTableNameAuto] = useState(true)
+  const [hashtagSelectedFields, setHashtagSelectedFields] = useState<{[key: string]: boolean}>({
+    'hashtag': true,
+    '发布时间': true,
+    '视频链接': true,
+    '视频封面': false,
+    '视频播放量': true,
+    '点赞数量': true,
+    '评论数量': true,
+    '分享数量': true,
+    '收藏数量': true,
+    '视频互动率': true,
+    '账号名称': true,
+    '视频标题': true,
+    '视频发布国家': true,
+    '视频下载链接': true,
+    '是否带货': true,
+    '带货产品链接': true,
+    '带货产品链接（全部）': true,
+    '带货原因': true,
+    '带货产品数量': true,
+    '带货产品信息': true
+  })
+  const [hashtagOfflineDetail, setHashtagOfflineDetail] = useState<OfflineTaskDetail | null>(null)
+  const [hashtagOfflineStopping, setHashtagOfflineStopping] = useState(false)
+  const [hashtagOfflineActiveTaskId, setHashtagOfflineActiveTaskId] = useState('')
+  const [hashtagScheduleSaving, setHashtagScheduleSaving] = useState(false)
 
   // 账号视频搜索相关状态
   const [username, setUsername] = useState('')
@@ -699,6 +832,11 @@ function App() {
     setKeywordTableNameAuto(false)
   }
 
+  const handleHashtagNewTableNameChange = (val: string) => {
+    setHashtagNewTableName(val)
+    setHashtagTableNameAuto(false)
+  }
+
   const handleAccountNewTableNameChange = (val: string) => {
     setAccountNewTableName(val)
     setAccountTableNameAuto(false)
@@ -722,6 +860,9 @@ function App() {
   // 模块级 AbortController 和停止标志
   const keywordAbortControllerRef = useRef<AbortController | null>(null);
   const keywordShouldStopRef = useRef(false);
+
+  const hashtagAbortControllerRef = useRef<AbortController | null>(null);
+  const hashtagShouldStopRef = useRef(false);
 
   const accountAbortControllerRef = useRef<AbortController | null>(null);
   const accountShouldStopRef = useRef(false);
@@ -933,6 +1074,7 @@ function App() {
     fetchWithIdentity,
     setMessage,
     keywordShouldStopRef,
+    hashtagShouldStopRef,
     accountShouldStopRef,
     audioShouldStopRef
   })
@@ -1065,6 +1207,11 @@ function App() {
     if (detail) setKeywordOfflineDetail(detail)
   }, [fetchOfflineTaskDetailById])
 
+  const loadHashtagOfflineTaskDetail = useCallback(async (taskId: string) => {
+    const detail = await fetchOfflineTaskDetailById(taskId)
+    if (detail) setHashtagOfflineDetail(detail)
+  }, [fetchOfflineTaskDetailById])
+
   const loadAccountOfflineTaskDetail = useCallback(async (taskId: string) => {
     const detail = await fetchOfflineTaskDetailById(taskId)
     if (detail) setAccountOfflineDetail(detail)
@@ -1083,6 +1230,10 @@ function App() {
   const offlineTasks = keywordOfflineTasks
   const keywordOfflineTaskList = useMemo(
     () => offlineTasks.filter(task => task.type === 'keyword'),
+    [offlineTasks]
+  )
+  const hashtagOfflineTaskList = useMemo(
+    () => offlineTasks.filter(task => task.type === 'hashtag'),
     [offlineTasks]
   )
   const accountOfflineTaskList = useMemo(
@@ -1105,6 +1256,10 @@ function App() {
     () => offlineSchedules.filter(item => normalizeScheduleType(item.type) === 'keyword'),
     [offlineSchedules]
   )
+  const hashtagSchedules = useMemo(
+    () => offlineSchedules.filter(item => normalizeScheduleType(item.type) === 'hashtag'),
+    [offlineSchedules]
+  )
   const accountSchedules = useMemo(
     () => offlineSchedules.filter(item => normalizeScheduleType(item.type) === 'account'),
     [offlineSchedules]
@@ -1122,6 +1277,14 @@ function App() {
     () => resolveNextScheduleTime(keywordSchedules),
     [keywordSchedules]
   )
+  const hashtagScheduleNextRunAt = useMemo(
+    () => resolveNextScheduleTime(hashtagSchedules),
+    [hashtagSchedules]
+  )
+  const hashtagNextSchedule = useMemo(
+    () => resolveNextSchedule(hashtagSchedules),
+    [hashtagSchedules]
+  )
   const accountScheduleNextRunAt = useMemo(
     () => resolveNextScheduleTime(accountSchedules),
     [accountSchedules]
@@ -1136,6 +1299,7 @@ function App() {
   )
 
   const keywordScheduleLimitReached = keywordSchedules.length >= 5
+  const hashtagScheduleLimitReached = hashtagSchedules.length >= 5
   const accountScheduleLimitReached = accountSchedules.length >= 5
   const accountInfoScheduleLimitReached = accountInfoSchedules.length >= 5
   const audioScheduleLimitReached = audioSchedules.length >= 5
@@ -1143,6 +1307,10 @@ function App() {
   const keywordOfflineRunningTask = useMemo(
     () => keywordOfflineTaskList.find(task => task.status === 'running' || task.status === 'queued') || null,
     [keywordOfflineTaskList]
+  )
+  const hashtagOfflineRunningTask = useMemo(
+    () => hashtagOfflineTaskList.find(task => task.status === 'running' || task.status === 'queued') || null,
+    [hashtagOfflineTaskList]
   )
   const accountOfflineRunningTask = useMemo(
     () => accountOfflineTaskList.find(task => task.status === 'running' || task.status === 'queued') || null,
@@ -1158,14 +1326,19 @@ function App() {
   )
 
   const keywordOfflineRunning = Boolean(keywordOfflineRunningTask)
+  const hashtagOfflineRunning = Boolean(hashtagOfflineRunningTask)
   const accountOfflineRunning = Boolean(accountOfflineRunningTask)
   const accountInfoOfflineRunning = Boolean(accountInfoOfflineRunningTask)
   const audioOfflineRunning = Boolean(audioOfflineRunningTask)
-  const offlineAnyRunning = keywordOfflineRunning || accountOfflineRunning || accountInfoOfflineRunning || audioOfflineRunning
+  const offlineAnyRunning = keywordOfflineRunning || hashtagOfflineRunning || accountOfflineRunning || accountInfoOfflineRunning || audioOfflineRunning
 
   const keywordOfflineActiveTask = useMemo(
     () => keywordOfflineTaskList.find(task => task.id === keywordOfflineActiveTaskId) || null,
     [keywordOfflineActiveTaskId, keywordOfflineTaskList]
+  )
+  const hashtagOfflineActiveTask = useMemo(
+    () => hashtagOfflineTaskList.find(task => task.id === hashtagOfflineActiveTaskId) || null,
+    [hashtagOfflineActiveTaskId, hashtagOfflineTaskList]
   )
   const accountOfflineActiveTask = useMemo(
     () => accountOfflineTaskList.find(task => task.id === accountOfflineActiveTaskId) || null,
@@ -1210,6 +1383,27 @@ function App() {
     }
     loadKeywordOfflineTaskDetail(keywordOfflineActiveTaskId)
   }, [keywordOfflineActiveTaskId, loadKeywordOfflineTaskDetail])
+
+  useEffect(() => {
+    if (!hashtagOfflineTaskList.length) {
+      setHashtagOfflineActiveTaskId('')
+      return
+    }
+    const running = hashtagOfflineTaskList.find(item => item.status === 'running' || item.status === 'queued')
+    const nextId = running?.id || hashtagOfflineTaskList[0]?.id || ''
+    setHashtagOfflineActiveTaskId(prev => {
+      if (prev && hashtagOfflineTaskList.some(task => task.id === prev)) return prev
+      return nextId
+    })
+  }, [hashtagOfflineTaskList])
+
+  useEffect(() => {
+    if (!hashtagOfflineActiveTaskId) {
+      setHashtagOfflineDetail(null)
+      return
+    }
+    loadHashtagOfflineTaskDetail(hashtagOfflineActiveTaskId)
+  }, [hashtagOfflineActiveTaskId, loadHashtagOfflineTaskDetail])
 
   useEffect(() => {
     if (!accountOfflineTaskList.length) {
@@ -1505,6 +1699,15 @@ function App() {
       [fieldName]: !prev[fieldName]
     }))
   }
+
+  // 处理 hashtag 字段选择
+  const handleHashtagFieldChange = (fieldName: string) => {
+    if (HASHTAG_REQUIRED_FIELDS.has(fieldName)) return
+    setHashtagSelectedFields(prev => ({
+      ...prev,
+      [fieldName]: !prev[fieldName]
+    }))
+  }
   
   // 处理账号字段选择
   const handleAccountFieldChange = (fieldName: string) => {
@@ -1622,6 +1825,43 @@ function App() {
     }
     setIsStopping(true)
     setMessage(tr('正在停止关键词采集...'))
+  }
+
+  const stopHashtagCollection = async () => {
+    const runningOffline = hashtagOfflineTaskList.find(
+      task => task.status === 'running' || task.status === 'queued'
+    )
+    if (runningOffline) {
+      if (hashtagOfflineStopping) return
+      setHashtagOfflineStopping(true)
+      setMessage(tr('正在停止后台任务...'))
+      try {
+        const response = await stopOfflineTaskRequest(runningOffline.id, fetchWithIdentity, {
+          timeout: TIMEOUT_CONFIG.QUOTA
+        })
+        if (!response.ok) {
+          setMessage(tr('停止失败，请稍后重试'))
+          return
+        }
+        setMessage(tr('后台任务已停止'))
+        await loadKeywordOfflineTasks(true)
+        await loadHashtagOfflineTaskDetail(runningOffline.id)
+        await refreshQuota()
+      } catch (error) {
+        console.error('停止后台任务失败:', error)
+        setMessage(tr('停止失败，请稍后重试'))
+      } finally {
+        setHashtagOfflineStopping(false)
+      }
+      return
+    }
+
+    hashtagShouldStopRef.current = true
+    if (hashtagAbortControllerRef.current) {
+      hashtagAbortControllerRef.current.abort()
+    }
+    setIsStopping(true)
+    setMessage(tr('正在停止hashtag采集...'))
   }
 
   const stopAccountCollection = async () => {
@@ -1782,6 +2022,62 @@ function App() {
       sort_type: keywordSortType,
       baseId,
       targetTable: keywordTargetTable,
+      tableId: targetTableId,
+      tableName: targetTableName,
+      selectedFields
+    }
+  }
+
+  const resolveHashtagOfflinePayload = async (): Promise<HashtagOfflinePayload | null> => {
+    const trimmedHashtag = hashtagQuery.trim()
+    if (!trimmedHashtag) {
+      setMessage(tr('请输入hashtag'))
+      return null
+    }
+    if (quotaUnavailable) {
+      setMessage(tr('配额未配置，请联系管理员后再试'))
+      return null
+    }
+    const baseId = keywordBaseId.trim()
+    if (!baseId) {
+      setMessage(tr('请填写表格编号'))
+      return null
+    }
+    if (!keywordOfflineHasAuth) {
+      setMessage(tr('请先完成授权'))
+      return null
+    }
+
+    let targetTableId = ''
+    let targetTableName = ''
+    if (hashtagTargetTable === 'current') {
+      const selectedTableId = hashtagTargetTableId || tableId
+      if (!selectedTableId) {
+        setMessage(tr('无法获取写入表格'))
+        return null
+      }
+      targetTableId = selectedTableId
+      targetTableName = await resolveTableNameById(selectedTableId)
+    } else {
+      let nextTableName = hashtagNewTableName
+      if (hashtagTableNameAuto) {
+        nextTableName = trimmedHashtag
+          ? getDefaultHashtagTableName(trimmedHashtag)
+          : getDefaultHashtagTableName()
+        setHashtagNewTableName(nextTableName)
+      }
+      const safeName = sanitizeTableName(nextTableName)
+      if (safeName !== nextTableName) setHashtagNewTableName(safeName)
+      targetTableName = safeName
+    }
+
+    const selectedFields = resolveSelectedFieldList(hashtagSelectedFields, HASHTAG_REQUIRED_FIELDS)
+
+    return {
+      keyword: trimmedHashtag,
+      region: hashtagRegion || 'US',
+      baseId,
+      targetTable: hashtagTargetTable,
       tableId: targetTableId,
       tableName: targetTableName,
       selectedFields
@@ -2077,6 +2373,35 @@ function App() {
     }
   }
 
+  const startHashtagOfflineTask = async () => {
+    const payload = await resolveHashtagOfflinePayload()
+    if (!payload) return
+
+    try {
+      setMessage(tr('任务已进入后台，请稍后查看进度'))
+      const response = await startHashtagOfflineTaskRequest(payload, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.SEARCH
+      })
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '')
+        if (response.status === 429) {
+          setMessage(tr('任务数量已达上限，请稍后再试'))
+          return
+        }
+        console.error('后台任务启动失败:', text)
+        setMessage(tr('后台任务启动失败，请稍后重试'))
+        return
+      }
+
+      await loadKeywordOfflineTasks(true)
+      setMessage(tr('后台任务已开始执行'))
+    } catch (error) {
+      console.error('后台任务启动失败:', error)
+      setMessage(tr('后台任务启动失败，请稍后重试'))
+    }
+  }
+
   const startAccountOfflineTask = async () => {
     const payload = await resolveAccountOfflinePayload()
     if (!payload) return
@@ -2198,6 +2523,12 @@ function App() {
     const payload = await resolveKeywordOfflinePayload()
     if (!payload) return
     await createScheduleTask('keyword', payload, schedule, setKeywordScheduleSaving)
+  }
+
+  const handleCreateHashtagSchedule = async (schedule: OfflineScheduleConfig) => {
+    const payload = await resolveHashtagOfflinePayload()
+    if (!payload) return
+    await createScheduleTask('hashtag', payload, schedule, setHashtagScheduleSaving)
   }
 
   const handleCreateAccountSchedule = async (schedule: OfflineScheduleConfig) => {
@@ -2648,6 +2979,304 @@ function App() {
       }
       setIsCollecting(false);
       setIsStopping(false);
+    }
+  }
+  
+  // 写入 hashtag TikTok 数据
+  const writeHashtagTikTokData = async () => {
+    if (hashtagRunMode === 'offline') {
+      await startHashtagOfflineTask()
+      return
+    }
+    if (hashtagRunMode === 'schedule') {
+      setMessage(tr('请使用定时执行'))
+      return
+    }
+    const trimmedHashtag = hashtagQuery.trim()
+    if (!trimmedHashtag) return
+    if (quotaUnavailable) {
+      setMessage(tr('配额未配置，请联系管理员后再试'))
+      return
+    }
+
+    try {
+      setCollectType(3)
+      setIsCollecting(true)
+      hashtagShouldStopRef.current = false
+      setIsStopping(false)
+      setMessage(tr('正在获取数据...'))
+      const activeTable = await bitable.base.getActiveTable()
+      if (!activeTable) {
+        throw new Error('无法获取当前表格');
+      }
+
+      let targetTable = activeTable
+      let targetTableName = ''
+      if (hashtagTargetTable === 'current') {
+        const selectedTableId = hashtagTargetTableId || activeTable.id
+        if (!selectedTableId) {
+          setMessage(tr('无法获取写入表格'))
+          return
+        }
+        if (selectedTableId !== activeTable.id) {
+          const selectedTable = await bitable.base.getTableById(selectedTableId)
+          if (!selectedTable) {
+            setMessage(tr('无法获取写入表格'))
+            return
+          }
+          targetTable = selectedTable
+        }
+        targetTableName = await resolveTableNameById(selectedTableId)
+      } else {
+        let nextTableName = hashtagNewTableName
+        if (hashtagTableNameAuto) {
+          nextTableName = trimmedHashtag
+            ? getDefaultHashtagTableName(trimmedHashtag)
+            : getDefaultHashtagTableName()
+          setHashtagNewTableName(nextTableName)
+        }
+        const safeName = sanitizeTableName(nextTableName)
+        if (safeName !== nextTableName) setHashtagNewTableName(safeName)
+        try {
+          targetTable = await createNewTable(safeName, 'hashtag')
+          targetTableName = safeName
+        } catch (error) {
+          console.error('创建表格失败:', error)
+          const msg = error instanceof Error && error.message?.includes('TableNameInvalid')
+            ? tr('表名无效，请重试')
+            : tr('创建表格失败，请检查权限')
+          setMessage(msg)
+          return
+        }
+      }
+
+      const hashtagSelection = ensureRequiredSelections(hashtagSelectedFields, HASHTAG_REQUIRED_FIELDS)
+      const hashtagFieldMetaList = await ensureFields(targetTable, HASHTAG_FIELD_CONFIGS, hashtagSelection)
+      await refreshFields()
+      let hashtagWriters = await buildFieldWriters(targetTable, HASHTAG_FIELD_CONFIGS, hashtagFieldMetaList, hashtagSelection)
+      const existingLinks = await collectExistingKeys(targetTable, '视频链接', normalizeUrlKey, { maxScan: 5000 })
+      let totalWritten = 0
+      let remainingAfterWrite = typeof quotaInfo?.remaining === 'number' ? quotaInfo.remaining : null
+      let quotaNote = ''
+      const maxPages = 100
+
+      setMessage(tr('正在扫描空行...'))
+      const emptyRecordIds = await getEmptyRecords(targetTable, hashtagShouldStopRef, { maxScan: 500 })
+      if (emptyRecordIds.length > 0) {
+        setMessage(tr('发现 {{count}} 个空行，将优先填充', { count: emptyRecordIds.length }))
+      }
+
+      hashtagAbortControllerRef.current = new AbortController()
+      const searchResponse = await fetchHashtagSearch({
+        keyword: trimmedHashtag,
+        count: '20',
+        offset: '0',
+        region: hashtagRegion || 'US'
+      }, fetchWithIdentity, {
+        timeout: TIMEOUT_CONFIG.SEARCH,
+        signal: hashtagAbortControllerRef.current.signal
+      })
+
+      if (await handle429Error(searchResponse)) {
+        return
+      }
+
+      if (!searchResponse.ok) {
+        const errorText = await searchResponse.text()
+        console.error('API 响应错误:', errorText)
+        throw new Error(`API 请求失败: ${searchResponse.status} ${searchResponse.statusText || ''}`)
+      }
+
+      const searchData = await searchResponse.json()
+      const hashtagItems = extractHashtagItems(searchData as HashtagSearchResponse)
+      const firstHashtag = hashtagItems[0]
+      const hashtagId = getHashtagId(firstHashtag)
+      const hashtagName = getHashtagName(firstHashtag)
+      if (!hashtagId) {
+        setMessage(tr('未找到hashtag'))
+        return
+      }
+
+      let hasMore = true
+      let offset = '0'
+      let pageCount = 0
+      let missingNextCursorOffset: string | null = null
+
+      while (hasMore && !hashtagShouldStopRef.current && pageCount < maxPages) {
+        if (hashtagShouldStopRef.current) return
+
+        hashtagAbortControllerRef.current = new AbortController()
+        const response = await fetchHashtagPosts({
+          hashtagId,
+          count: '20',
+          offset,
+          region: hashtagRegion || 'US'
+        }, fetchWithIdentity, {
+          timeout: TIMEOUT_CONFIG.SEARCH,
+          signal: hashtagAbortControllerRef.current.signal
+        })
+
+        if (await handle429Error(response)) {
+          return
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('API 响应错误:', errorText)
+          throw new Error(`API 请求失败: ${response.status} ${response.statusText || ''}`)
+        }
+
+        const data = await response.json()
+        const posts = extractHashtagPosts(data) as HashtagRawItem[]
+        const validItems = posts
+          .map((raw): HashtagVideoItem | null => {
+            const awemeInfo = (raw.aweme_info || raw) as Partial<AwemeItem>
+            if (!awemeInfo.author) return null
+            const itemRegion = awemeInfo.region || raw.region || ''
+            if (itemRegion && itemRegion !== (hashtagRegion || 'US')) return null
+
+            const videoUrl = buildVideoShareLink({
+              shareUrl: awemeInfo.share_url,
+              shareInfoUrl: awemeInfo.share_info?.share_url,
+              awemeId: awemeInfo.aweme_id,
+              authorId: awemeInfo.author?.unique_id
+            })
+
+            const coverUrl = pickCoverUrl(awemeInfo.video)
+            const commerce = commerceFromAweme(awemeInfo as unknown as Record<string, unknown>)
+
+            return {
+              author: {
+                uniqueId: awemeInfo.author.unique_id || ''
+              },
+              awemeId: awemeInfo.aweme_id || '',
+              desc: awemeInfo.desc || '',
+              createTime: awemeInfo.create_time || 0,
+              region: itemRegion || '',
+              shareLink: videoUrl,
+              videoUrl: awemeInfo.video?.play_addr?.url_list?.[0] || '',
+              coverUrl,
+              stats: {
+                playCount: awemeInfo.statistics?.play_count || 0,
+                diggCount: awemeInfo.statistics?.digg_count || 0,
+                commentCount: awemeInfo.statistics?.comment_count || 0,
+                shareCount: awemeInfo.statistics?.share_count || 0,
+                collectCount: awemeInfo.statistics?.collect_count || 0
+              },
+              anchors: awemeInfo.anchors,
+              anchor_info: awemeInfo.anchor_info,
+              bottom_products: awemeInfo.bottom_products,
+              products_info: awemeInfo.products_info,
+              right_products: awemeInfo.right_products,
+              has_commerce_goods: awemeInfo.has_commerce_goods,
+              existed_commerce_goods: awemeInfo.existed_commerce_goods,
+              ecommerce_goods: awemeInfo.ecommerce_goods,
+              commerce_info: awemeInfo.commerce_info,
+              commerce
+            }
+          })
+          .filter((item): item is HashtagVideoItem => Boolean(item))
+
+        if (validItems.length === 0) {
+          console.warn('当前页没有有效的数据项，检查是否还有更多页')
+        } else {
+          const recordsToInsert: Record<string, IOpenCellValue>[] = []
+          if (!Object.keys(hashtagWriters).length) {
+            const refreshedMeta = await targetTable.getFieldMetaList()
+            hashtagWriters = await buildFieldWriters(targetTable, HASHTAG_FIELD_CONFIGS, refreshedMeta, hashtagSelection)
+            await refreshFields()
+          }
+          const coverEnabled = Boolean(hashtagWriters['视频封面'])
+          for (const item of validItems) {
+            if (hashtagShouldStopRef.current) {
+              return
+            }
+            const linkKey = normalizeUrlKey(item.shareLink)
+            if (!linkKey || existingLinks.has(linkKey)) continue
+            existingLinks.add(linkKey)
+            let coverFile: File | undefined
+            if (coverEnabled && item.coverUrl) {
+              coverFile = await fetchCoverFile(
+                item.coverUrl,
+                buildCoverFileName('hashtag', item.awemeId),
+                {
+                  signal: hashtagAbortControllerRef.current?.signal,
+                  convert: false
+                }
+              )
+              if (hashtagShouldStopRef.current) {
+                return
+              }
+            }
+            const record = await buildHashtagRecord({ ...item, coverFile }, hashtagWriters, hashtagName || trimmedHashtag)
+            if (!record) continue
+            recordsToInsert.push(record)
+          }
+
+          if (recordsToInsert.length) {
+            const { appendedCount, filledCount } = await addRecordsInBatches(targetTable, recordsToInsert, {
+              emptyRecordIds,
+              stopRef: hashtagShouldStopRef
+            })
+            const writtenCount = appendedCount + filledCount
+            const quotaResult = await applyQuotaConsumption(remainingAfterWrite, writtenCount)
+            remainingAfterWrite = quotaResult.remaining
+            quotaNote = quotaResult.note
+            totalWritten += writtenCount
+            setMessage(tr(hashtagTargetTable === 'new'
+              ? '已写入新表 {{table}} 共 {{count}} 条'
+              : '已写入 {{count}} 条数据', {
+              table: targetTableName || '',
+              count: totalWritten,
+              used: totalWritten,
+              remaining: formatRemaining(remainingAfterWrite)
+            }) + quotaNote)
+          }
+        }
+
+        if (hashtagShouldStopRef.current) return
+
+        if (data.has_more) {
+          const nextCursor = data.max_cursor ?? data.cursor
+          const nextCursorText = nextCursor === undefined || nextCursor === null
+            ? ''
+            : String(nextCursor).trim()
+          const isMissingNextCursor = !nextCursorText || nextCursorText === offset
+          if (isMissingNextCursor) {
+            if (missingNextCursorOffset === offset) {
+              setMessage(tr('仍未获得下一批起点，已结束当前hashtag'))
+              hasMore = false
+            } else {
+              missingNextCursorOffset = offset
+              setMessage(tr('还有更多但没有下一批起点，已重试当前批次'))
+            }
+          } else {
+            missingNextCursorOffset = null
+            offset = nextCursorText
+            pageCount++
+            setMessage(tr('已获取第 {{page}} 页数据，共 {{total}} 条', { page: pageCount, total: totalWritten }))
+          }
+        } else {
+          hasMore = false
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+
+      setMessage(tr(hashtagShouldStopRef.current ? '已停止采集，成功写入 {{count}} 条数据' : '成功写入 {{count}} 条数据', {
+        count: totalWritten,
+        used: totalWritten,
+        remaining: formatRemaining(remainingAfterWrite)
+      }) + quotaNote)
+    } catch (error) {
+      console.error('写入数据失败:', error)
+      setMessage(tr('写入数据失败: {{error}}', { error: error instanceof Error ? error.message : '未知错误' }))
+    } finally {
+      if (hashtagAbortControllerRef.current) {
+        hashtagAbortControllerRef.current = null
+      }
+      setIsCollecting(false)
+      setIsStopping(false)
     }
   }
   
@@ -3867,6 +4496,7 @@ function App() {
 
   // 派生状态：各区域是否展开
   const keywordOpen = activeSection === 'keyword'
+  const hashtagOpen = activeSection === 'hashtag'
   const accountOpen = activeSection === 'account'
   const accountInfoOpen = activeSection === 'accountInfo'
   const audioOpen = activeSection === 'audio'
@@ -3878,6 +4508,7 @@ function App() {
   const quotaAvailable = quotaInfo?.status === 'available' && typeof quotaInfo?.remaining === 'number'
   const quotaZero = quotaAvailable && (quotaInfo?.remaining ?? 0) <= 0
   const keywordQuotaInsufficient = quotaZero
+  const hashtagQuotaInsufficient = quotaZero
   const accountQuotaInsufficient = quotaZero
   const accountInfoQuotaInsufficient = quotaZero && accountInfoEstimatedRows > 0
   const audioQuotaInsufficient = quotaZero
@@ -3945,6 +4576,17 @@ function App() {
     }
     setKeywordNewTableName(getDefaultKeywordTableName(query.trim()))
   }, [query, keywordTargetTable, keywordTableNameAuto])
+
+  // hashtag 变化时自动更新表格名称（仅当选择新建表格时）
+  useEffect(() => {
+    if (hashtagTargetTable !== 'new') return
+    if (!hashtagTableNameAuto) return
+    if (!hashtagQuery.trim()) {
+      setHashtagNewTableName(getDefaultHashtagTableName())
+      return
+    }
+    setHashtagNewTableName(getDefaultHashtagTableName(hashtagQuery.trim()))
+  }, [hashtagQuery, hashtagTargetTable, hashtagTableNameAuto])
 
   // 账号名变化时自动更新表格名称（仅当选择新建表格时）
   useEffect(() => {
@@ -4220,6 +4862,49 @@ function App() {
           writeKeywordTikTokData={writeKeywordTikTokData}
           stopCollection={stopKeywordCollection}
           onCreateKeywordSchedule={handleCreateKeywordSchedule}
+        />
+
+        <HashtagSection
+          tr={tr}
+          open={hashtagOpen}
+          onToggle={() => toggleSection('hashtag')}
+          isCollecting={isCollecting}
+          isStopping={isStopping}
+          collectType={collectType}
+          hashtagQuery={hashtagQuery}
+          region={hashtagRegion}
+          hashtagRunMode={hashtagRunMode}
+          hashtagBaseId={keywordBaseId}
+          hashtagTargetTable={hashtagTargetTable}
+          hashtagTargetTableId={hashtagTargetTableId}
+          currentTableId={tableId}
+          tableOptions={tableOptions}
+          hashtagNewTableName={hashtagNewTableName}
+          loading={loading}
+          hashtagQuotaInsufficient={hashtagQuotaInsufficient}
+          hashtagSelectedFields={hashtagSelectedFields}
+          hashtagRequiredFields={HASHTAG_REQUIRED_FIELDS}
+          hashtagOfflineAuthStatus={keywordOfflineAuthStatus}
+          hashtagOfflineTasks={hashtagOfflineTaskList}
+          hashtagOfflineActiveTask={hashtagOfflineActiveTask}
+          hashtagOfflineDetail={hashtagOfflineDetail}
+          hashtagOfflineRunning={hashtagOfflineRunning}
+          hashtagOfflineStopping={hashtagOfflineStopping}
+          hashtagScheduleCount={hashtagSchedules.length}
+          hashtagScheduleNextRunAt={hashtagScheduleNextRunAt}
+          hashtagNextSchedule={hashtagNextSchedule}
+          hashtagScheduleLimitReached={hashtagScheduleLimitReached}
+          hashtagScheduleSaving={hashtagScheduleSaving}
+          setHashtagQuery={setHashtagQuery}
+          setRegion={setHashtagRegion}
+          setHashtagRunMode={setHashtagRunMode}
+          setHashtagTargetTable={setHashtagTargetTable}
+          setHashtagTargetTableId={setHashtagTargetTableId}
+          setHashtagNewTableName={handleHashtagNewTableNameChange}
+          handleHashtagFieldChange={handleHashtagFieldChange}
+          writeHashtagTikTokData={writeHashtagTikTokData}
+          stopCollection={stopHashtagCollection}
+          onCreateHashtagSchedule={handleCreateHashtagSchedule}
         />
 
         <AccountSection

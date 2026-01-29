@@ -40,6 +40,8 @@ export interface FieldMapping<T = unknown> {
 export interface RecordBuildContext {
   /** 关键词（用于关键词搜索记录） */
   keyword?: string
+  /** hashtag 名称（用于 hashtag 记录） */
+  hashtag?: string
   /** 商品检测结果（自动计算，无需手动传入） */
   commerce?: CommerceResult
   /** 其他自定义上下文 */
@@ -158,6 +160,65 @@ const calculateInteractionRate = (
  */
 export const KEYWORD_VIDEO_MAPPINGS: FieldMapping<KeywordVideoItem>[] = [
   { name: '关键词', getValue: (_, ctx) => ctx?.keyword },
+  { name: '发布时间', getValue: item => item.createTime * 1000 },
+  { name: '视频链接', getValue: item => item.shareLink },
+  { name: '视频封面', getValue: item => item.coverFile },
+  { name: '视频播放量', getValue: item => item.stats.playCount },
+  { name: '点赞数量', getValue: item => item.stats.diggCount },
+  { name: '评论数量', getValue: item => item.stats.commentCount },
+  { name: '分享数量', getValue: item => item.stats.shareCount },
+  { name: '收藏数量', getValue: item => item.stats.collectCount },
+  {
+    name: '视频互动率',
+    getValue: item => calculateInteractionRate(
+      item.stats.playCount || 0,
+      item.stats.diggCount || 0,
+      item.stats.commentCount || 0,
+      item.stats.collectCount || 0,
+      item.stats.shareCount || 0
+    )
+  },
+  { name: '账号名称', getValue: item => item.author.uniqueId },
+  { name: '视频标题', getValue: item => item.desc },
+  { name: '视频发布国家', getValue: item => item.region || '' },
+  { name: '视频下载链接', getValue: item => item.videoUrl },
+  { name: '是否带货', getValue: (_, ctx) => ctx?.commerce?.isCommerce ?? false },
+  {
+    name: '带货产品链接',
+    getValue: (_, ctx) => {
+      const products = ctx?.commerce?.products || []
+      return products.map(p => pickProductLink(p)).filter(link => link)[0] || ''
+    }
+  },
+  {
+    name: '带货产品链接（全部）',
+    getValue: (_, ctx) => {
+      const products = ctx?.commerce?.products || []
+      return products.map(p => pickProductLink(p)).filter(link => link).join('\n')
+    }
+  },
+  {
+    name: '带货原因',
+    getValue: (_, ctx) => {
+      const reasons = ctx?.commerce?.reasons || []
+      return reasons.map(r => translateCommerceReason(r)).join('、')
+    }
+  },
+  {
+    name: '带货产品数量',
+    getValue: (_, ctx) => {
+      const commerce = ctx?.commerce
+      return commerce?.isCommerce ? Math.floor(commerce?.productsTotal || 0) : ''
+    }
+  },
+  { name: '带货产品信息', getValue: (_, ctx) => ctx?.commerce?.productsText || '' }
+]
+
+/**
+ * hashtag 视频字段映射
+ */
+export const HASHTAG_VIDEO_MAPPINGS: FieldMapping<KeywordVideoItem>[] = [
+  { name: 'hashtag', getValue: (_, ctx) => ctx?.hashtag },
   { name: '发布时间', getValue: item => item.createTime * 1000 },
   { name: '视频链接', getValue: item => item.shareLink },
   { name: '视频封面', getValue: item => item.coverFile },
@@ -393,6 +454,28 @@ export const buildKeywordRecord = async (
   }
 
   return buildRecord(item, KEYWORD_VIDEO_MAPPINGS, writers, { keyword, commerce: item.commerce })
+}
+
+/**
+ * 构建 hashtag 视频记录（兼容性包装）
+ *
+ * @param item - TikTok 视频数据
+ * @param writers - 字段写入器
+ * @param hashtag - hashtag 名称
+ * @returns 记录字段映射
+ */
+export const buildHashtagRecord = async (
+  item: KeywordVideoItem,
+  writers: Record<string, FieldWriter>,
+  hashtag: string
+): Promise<Record<string, IOpenCellValue> | null> => {
+  const linkKey = normalizeUrlKey(item.shareLink)
+  if (!linkKey) {
+    console.warn('[buildHashtagRecord] 视频链接为空，跳过该记录')
+    return null
+  }
+
+  return buildRecord(item, HASHTAG_VIDEO_MAPPINGS, writers, { hashtag, commerce: item.commerce })
 }
 
 /**

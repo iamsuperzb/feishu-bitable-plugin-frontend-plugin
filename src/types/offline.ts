@@ -20,6 +20,7 @@ export interface OfflineScheduleSummary {
   lastTaskId?: string
   createdAt?: string
   updatedAt?: string
+  hashtag?: string
   keyword?: string
   username?: string
   tableName?: string

@@ -55,6 +55,18 @@ export const getDefaultKeywordTableName = (keyword?: string): string => {
 }
 
 /**
+ * 生成 hashtag 监控默认表名
+ *
+ * @param hashtag - 可选的 hashtag，包含在表名中
+ * @returns 格式：hashtag监控[-hashtag]-YYYYMMDD-HHMMSS
+ */
+export const getDefaultHashtagTableName = (hashtag?: string): string => {
+  const base = 'hashtag监控'
+  const timestamp = formatDateTimeLabel()
+  return hashtag ? `${base}-${hashtag}-${timestamp}` : `${base}-${timestamp}`
+}
+
+/**
  * 生成账户视频采集默认表名
  *
  * @param username - 可选的账户名，包含在表名中

@@ -16,7 +16,7 @@ import { useState } from 'react'
 /**
  * 区域类型定义
  */
-export type SectionKey = 'keyword' | 'account' | 'accountInfo' | 'audio'
+export type SectionKey = 'keyword' | 'hashtag' | 'account' | 'accountInfo' | 'audio'
 
 /**
  * UI 状态管理 Hook
@@ -54,7 +54,7 @@ export const useUIState = () => {
   // 停止中状态
   const [isStopping, setIsStopping] = useState(false)
 
-  // 当前采集类型：1-关键词采集，2-账号采集
+  // 当前采集类型：1-关键词采集，2-账号采集，3-hashtag采集
   const [collectType, setCollectType] = useState(1)
 
   // UI折叠状态（手风琴模式：同一时间只有一个区域展开）

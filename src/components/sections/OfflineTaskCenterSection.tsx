@@ -16,12 +16,14 @@ interface OfflineTaskSummary {
   progress?: OfflineTaskProgress
   createdAt?: string
   updatedAt?: string
+  hashtag?: string
   keyword?: string
   username?: string
   tableName?: string
 }
 
 interface TaskTitleItem {
+  hashtag?: string
   keyword?: string
   username?: string
   tableName?: string
@@ -62,7 +64,7 @@ const formatStatusText = (tr: OfflineTaskCenterSectionProps['tr'], status?: stri
 }
 
 const formatTaskTitle = (tr: OfflineTaskCenterSectionProps['tr'], task: TaskTitleItem) => {
-  const main = task.keyword || task.username
+  const main = task.hashtag || task.keyword || task.username
   const parts = [main, task.tableName].filter(Boolean)
   if (parts.length > 0) return parts.join('｜')
   return tr('任务')
@@ -70,6 +72,7 @@ const formatTaskTitle = (tr: OfflineTaskCenterSectionProps['tr'], task: TaskTitl
 
 const formatTaskSource = (tr: OfflineTaskCenterSectionProps['tr'], type?: string) => {
   const normalized = String(type || '').toLowerCase()
+  if (normalized === 'hashtag') return tr('hashtag监控')
   if (normalized === 'keyword') return tr('关键词采集')
   if (normalized === 'account') return tr('账号采集')
   if (normalized === 'accountinfo' || normalized === 'account_info' || normalized === 'account-info') return tr('账号信息采集')

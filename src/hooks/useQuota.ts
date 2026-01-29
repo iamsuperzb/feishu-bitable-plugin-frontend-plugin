@@ -67,6 +67,8 @@ export interface UseQuotaOptions {
   setMessage: (message: string) => void
   /** 关键词采集停止标志 */
   keywordShouldStopRef: React.MutableRefObject<boolean>
+  /** hashtag 采集停止标志 */
+  hashtagShouldStopRef: React.MutableRefObject<boolean>
   /** 账号采集停止标志 */
   accountShouldStopRef: React.MutableRefObject<boolean>
   /** 音频提取停止标志 */
@@ -103,6 +105,7 @@ export const useQuota = (options: UseQuotaOptions) => {
     fetchWithIdentity,
     setMessage,
     keywordShouldStopRef,
+    hashtagShouldStopRef,
     accountShouldStopRef,
     audioShouldStopRef
   } = options
@@ -179,6 +182,7 @@ export const useQuota = (options: UseQuotaOptions) => {
           : '点数已用完')
       setMessage(messageText)
       keywordShouldStopRef.current = true
+      hashtagShouldStopRef.current = true
       accountShouldStopRef.current = true
       audioShouldStopRef.current = true
       return true
@@ -195,6 +199,7 @@ export const useQuota = (options: UseQuotaOptions) => {
     quotaInfo?.resetAt,
     setMessage,
     keywordShouldStopRef,
+    hashtagShouldStopRef,
     accountShouldStopRef,
     audioShouldStopRef
   ])
