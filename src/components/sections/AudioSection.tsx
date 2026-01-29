@@ -1,7 +1,7 @@
 import type { IFieldMeta } from '@lark-base-open/js-sdk'
 import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
 import ScheduleForm from './ScheduleForm'
-import type { OfflineScheduleConfig } from '../../types/offline'
+import type { OfflineScheduleConfig, OfflineScheduleSummary } from '../../types/offline'
 
 type TableTarget = 'current' | 'new'
 type AudioMode = 'column' | 'batch'
@@ -49,6 +49,7 @@ interface AudioSectionProps {
   audioOfflineStopping: boolean
   audioScheduleCount: number
   audioScheduleNextRunAt: string
+  audioNextSchedule: OfflineScheduleSummary | null
   audioScheduleLimitReached: boolean
   audioScheduleSaving: boolean
   audioMode: AudioMode
@@ -91,6 +92,7 @@ export default function AudioSection(props: AudioSectionProps) {
     audioOfflineStopping,
     audioScheduleCount,
     audioScheduleNextRunAt,
+    audioNextSchedule,
     audioScheduleLimitReached,
     audioScheduleSaving,
     audioMode,
@@ -135,6 +137,16 @@ export default function AudioSection(props: AudioSectionProps) {
     if (status === 'completed') return tr('已完成')
     if (status === 'stopped') return tr('已停止')
     return tr('未知')
+  }
+
+  const formatScheduleMode = (schedule?: OfflineScheduleSummary['schedule']) => {
+    const mode = schedule?.mode
+    if (mode === 'once') return tr('只执行一次')
+    if (mode === 'daily') return tr('每天')
+    if (mode === 'weekly') return tr('每周')
+    if (mode === 'monthly') return tr('每月')
+    if (mode === 'interval') return tr(`每${schedule?.intervalDays || 1}天`)
+    return '-'
   }
 
   const formatCount = (value?: number) => (
@@ -243,6 +255,23 @@ export default function AudioSection(props: AudioSectionProps) {
               </label>
             </div>
           </div>
+
+          {showScheduleForm && (
+            <div className="form-item full-width">
+              <div className="offline-meta">
+                {tr('已设置')} {audioScheduleCount} {tr('个定时任务')}
+              </div>
+              <div className="offline-meta">
+                {tr('下次执行')}: {formatTime(audioScheduleNextRunAt)}
+              </div>
+              <div className="offline-meta">
+                {tr('频率')}: {formatScheduleMode(audioNextSchedule?.schedule)}
+              </div>
+              <div className="offline-meta">
+                {tr('开始时间')}: {formatTime(audioNextSchedule?.schedule?.startAt)}
+              </div>
+            </div>
+          )}
 
           {audioMode === 'column' ? (
             <div className="form-item full-width">
@@ -398,12 +427,6 @@ export default function AudioSection(props: AudioSectionProps) {
 
         {showScheduleForm && (
           <div className="schedule-panel">
-            <div className="offline-meta">
-              {tr('已设置')} {audioScheduleCount} {tr('个定时任务')}
-            </div>
-            <div className="offline-meta">
-              {tr('下次执行')}: {formatTime(audioScheduleNextRunAt)}
-            </div>
             <ScheduleForm
               tr={tr}
               disabled={offlineBlocked || audioScheduleSaving}

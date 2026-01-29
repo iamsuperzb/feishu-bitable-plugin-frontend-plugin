@@ -1,6 +1,6 @@
 import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
 import ScheduleForm from './ScheduleForm'
-import type { OfflineScheduleConfig } from '../../types/offline'
+import type { OfflineScheduleConfig, OfflineScheduleSummary } from '../../types/offline'
 
 type TableTarget = 'current' | 'new'
 type AccountRunMode = 'online' | 'offline' | 'schedule'
@@ -52,6 +52,7 @@ interface AccountSectionProps {
   accountOfflineStopping: boolean
   accountScheduleCount: number
   accountScheduleNextRunAt: string
+  accountNextSchedule: OfflineScheduleSummary | null
   accountScheduleLimitReached: boolean
   accountScheduleSaving: boolean
   accountTargetTable: TableTarget
@@ -118,6 +119,7 @@ export default function AccountSection(props: AccountSectionProps) {
     accountOfflineStopping,
     accountScheduleCount,
     accountScheduleNextRunAt,
+    accountNextSchedule,
     accountScheduleLimitReached,
     accountScheduleSaving,
     accountTargetTable,
@@ -162,6 +164,16 @@ export default function AccountSection(props: AccountSectionProps) {
     if (status === 'completed') return tr('已完成')
     if (status === 'stopped') return tr('已停止')
     return tr('未知')
+  }
+
+  const formatScheduleMode = (schedule?: OfflineScheduleSummary['schedule']) => {
+    const mode = schedule?.mode
+    if (mode === 'once') return tr('只执行一次')
+    if (mode === 'daily') return tr('每天')
+    if (mode === 'weekly') return tr('每周')
+    if (mode === 'monthly') return tr('每月')
+    if (mode === 'interval') return tr(`每${schedule?.intervalDays || 1}天`)
+    return '-'
   }
 
   const formatCount = (value?: number) => (
@@ -282,6 +294,23 @@ export default function AccountSection(props: AccountSectionProps) {
             </div>
           </div>
 
+          {showScheduleForm && (
+            <div className="form-item full-width">
+              <div className="offline-meta">
+                {tr('已设置')} {accountScheduleCount} {tr('个定时任务')}
+              </div>
+              <div className="offline-meta">
+                {tr('下次执行')}: {formatTime(accountScheduleNextRunAt)}
+              </div>
+              <div className="offline-meta">
+                {tr('频率')}: {formatScheduleMode(accountNextSchedule?.schedule)}
+              </div>
+              <div className="offline-meta">
+                {tr('开始时间')}: {formatTime(accountNextSchedule?.schedule?.startAt)}
+              </div>
+            </div>
+          )}
+
           <div className="form-item full-width">
             <label>{tr('写入目标:')}</label>
             <div className="radio-group">
@@ -368,12 +397,6 @@ export default function AccountSection(props: AccountSectionProps) {
 
         {showScheduleForm && (
           <div className="schedule-panel">
-            <div className="offline-meta">
-              {tr('已设置')} {accountScheduleCount} {tr('个定时任务')}
-            </div>
-            <div className="offline-meta">
-              {tr('下次执行')}: {formatTime(accountScheduleNextRunAt)}
-            </div>
             <ScheduleForm
               tr={tr}
               disabled={offlineBlocked || accountScheduleSaving}

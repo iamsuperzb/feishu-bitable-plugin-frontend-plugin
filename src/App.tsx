@@ -480,6 +480,18 @@ const resolveNextScheduleTime = (items: OfflineScheduleSummary[]) => {
   return nextItems[0]?.nextRunAt || ''
 }
 
+const resolveNextSchedule = (items: OfflineScheduleSummary[]) => {
+  const nextItems = items
+    .filter(item => item.status === 'active' && item.nextRunAt)
+    .slice()
+    .sort((a, b) => {
+      const aTime = new Date(a.nextRunAt || '').getTime()
+      const bTime = new Date(b.nextRunAt || '').getTime()
+      return aTime - bTime
+    })
+  return nextItems[0] || null
+}
+
 const buildKeywordVtimeKey = (tableId: string) => `${KEYWORD_VTIME_KEY_PREFIX}${tableId}`
 
 const detectBaseIdFromUrl = () => {
@@ -1122,16 +1134,32 @@ function App() {
     () => resolveNextScheduleTime(keywordSchedules),
     [keywordSchedules]
   )
+  const keywordNextSchedule = useMemo(
+    () => resolveNextSchedule(keywordSchedules),
+    [keywordSchedules]
+  )
   const accountScheduleNextRunAt = useMemo(
     () => resolveNextScheduleTime(accountSchedules),
+    [accountSchedules]
+  )
+  const accountNextSchedule = useMemo(
+    () => resolveNextSchedule(accountSchedules),
     [accountSchedules]
   )
   const accountInfoScheduleNextRunAt = useMemo(
     () => resolveNextScheduleTime(accountInfoSchedules),
     [accountInfoSchedules]
   )
+  const accountInfoNextSchedule = useMemo(
+    () => resolveNextSchedule(accountInfoSchedules),
+    [accountInfoSchedules]
+  )
   const audioScheduleNextRunAt = useMemo(
     () => resolveNextScheduleTime(audioSchedules),
+    [audioSchedules]
+  )
+  const audioNextSchedule = useMemo(
+    () => resolveNextSchedule(audioSchedules),
     [audioSchedules]
   )
 
@@ -4204,11 +4232,12 @@ function App() {
           keywordOfflineDetail={keywordOfflineDetail}
           keywordOfflineRunning={keywordOfflineRunning}
           keywordOfflineStopping={keywordOfflineStopping}
-          keywordScheduleCount={keywordSchedules.length}
-          keywordScheduleNextRunAt={keywordScheduleNextRunAt}
-          keywordScheduleLimitReached={keywordScheduleLimitReached}
-          keywordScheduleSaving={keywordScheduleSaving}
-          setQuery={setQuery}
+        keywordScheduleCount={keywordSchedules.length}
+        keywordScheduleNextRunAt={keywordScheduleNextRunAt}
+        keywordNextSchedule={keywordNextSchedule}
+        keywordScheduleLimitReached={keywordScheduleLimitReached}
+        keywordScheduleSaving={keywordScheduleSaving}
+        setQuery={setQuery}
           setVtime={setVtime}
           setRegion={setRegion}
           setKeywordSortType={setKeywordSortType}
@@ -4242,10 +4271,11 @@ function App() {
           accountOfflineDetail={accountOfflineDetail}
           accountOfflineRunning={accountOfflineRunning}
           accountOfflineStopping={accountOfflineStopping}
-          accountScheduleCount={accountSchedules.length}
-          accountScheduleNextRunAt={accountScheduleNextRunAt}
-          accountScheduleLimitReached={accountScheduleLimitReached}
-          accountScheduleSaving={accountScheduleSaving}
+        accountScheduleCount={accountSchedules.length}
+        accountScheduleNextRunAt={accountScheduleNextRunAt}
+        accountNextSchedule={accountNextSchedule}
+        accountScheduleLimitReached={accountScheduleLimitReached}
+        accountScheduleSaving={accountScheduleSaving}
           accountTargetTable={accountTargetTable}
           accountNewTableName={accountNewTableName}
           loading={loading}
@@ -4279,10 +4309,11 @@ function App() {
           accountInfoOfflineDetail={accountInfoOfflineDetail}
           accountInfoOfflineRunning={accountInfoOfflineRunning}
           accountInfoOfflineStopping={accountInfoOfflineStopping}
-          accountInfoScheduleCount={accountInfoSchedules.length}
-          accountInfoScheduleNextRunAt={accountInfoScheduleNextRunAt}
-          accountInfoScheduleLimitReached={accountInfoScheduleLimitReached}
-          accountInfoScheduleSaving={accountInfoScheduleSaving}
+        accountInfoScheduleCount={accountInfoSchedules.length}
+        accountInfoScheduleNextRunAt={accountInfoScheduleNextRunAt}
+        accountInfoNextSchedule={accountInfoNextSchedule}
+        accountInfoScheduleLimitReached={accountInfoScheduleLimitReached}
+        accountInfoScheduleSaving={accountInfoScheduleSaving}
           accountInfoMode={accountInfoMode}
           setAccountInfoMode={setAccountInfoMode}
           accountInfoUsernameField={accountInfoUsernameField}
@@ -4330,10 +4361,11 @@ function App() {
           audioOfflineDetail={audioOfflineDetail}
           audioOfflineRunning={audioOfflineRunning}
           audioOfflineStopping={audioOfflineStopping}
-          audioScheduleCount={audioSchedules.length}
-          audioScheduleNextRunAt={audioScheduleNextRunAt}
-          audioScheduleLimitReached={audioScheduleLimitReached}
-          audioScheduleSaving={audioScheduleSaving}
+        audioScheduleCount={audioSchedules.length}
+        audioScheduleNextRunAt={audioScheduleNextRunAt}
+        audioNextSchedule={audioNextSchedule}
+        audioScheduleLimitReached={audioScheduleLimitReached}
+        audioScheduleSaving={audioScheduleSaving}
           audioMode={audioMode}
           setAudioMode={setAudioMode}
           audioVideoUrlField={audioVideoUrlField}

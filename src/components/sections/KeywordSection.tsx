@@ -1,6 +1,6 @@
 import { adjustHelpTipWithinRoot } from '../../utils/helpTip'
 import ScheduleForm from './ScheduleForm'
-import type { OfflineScheduleConfig } from '../../types/offline'
+import type { OfflineScheduleConfig, OfflineScheduleSummary } from '../../types/offline'
 
 type TableTarget = 'current' | 'new'
 type KeywordRunMode = 'online' | 'offline' | 'schedule'
@@ -62,6 +62,7 @@ interface KeywordSectionProps {
   keywordOfflineStopping: boolean
   keywordScheduleCount: number
   keywordScheduleNextRunAt: string
+  keywordNextSchedule: OfflineScheduleSummary | null
   keywordScheduleLimitReached: boolean
   keywordScheduleSaving: boolean
   setQuery: (val: string) => void
@@ -132,6 +133,7 @@ export default function KeywordSection(props: KeywordSectionProps) {
     keywordOfflineStopping,
     keywordScheduleCount,
     keywordScheduleNextRunAt,
+    keywordNextSchedule,
     keywordScheduleLimitReached,
     keywordScheduleSaving,
     setQuery,
@@ -172,6 +174,16 @@ export default function KeywordSection(props: KeywordSectionProps) {
     if (status === 'completed') return tr('已完成')
     if (status === 'stopped') return tr('已停止')
     return tr('未知')
+  }
+
+  const formatScheduleMode = (schedule?: OfflineScheduleSummary['schedule']) => {
+    const mode = schedule?.mode
+    if (mode === 'once') return tr('只执行一次')
+    if (mode === 'daily') return tr('每天')
+    if (mode === 'weekly') return tr('每周')
+    if (mode === 'monthly') return tr('每月')
+    if (mode === 'interval') return tr(`每${schedule?.intervalDays || 1}天`)
+    return '-'
   }
 
   const formatCount = (value?: number) => (
@@ -320,6 +332,23 @@ export default function KeywordSection(props: KeywordSectionProps) {
             </div>
           </div>
 
+          {showScheduleForm && (
+            <div className="form-item full-width">
+              <div className="offline-meta">
+                {tr('已设置')} {keywordScheduleCount} {tr('个定时任务')}
+              </div>
+              <div className="offline-meta">
+                {tr('下次执行')}: {formatTime(keywordScheduleNextRunAt)}
+              </div>
+              <div className="offline-meta">
+                {tr('频率')}: {formatScheduleMode(keywordNextSchedule?.schedule)}
+              </div>
+              <div className="offline-meta">
+                {tr('开始时间')}: {formatTime(keywordNextSchedule?.schedule?.startAt)}
+              </div>
+            </div>
+          )}
+
           <div className="form-item full-width">
             <label>{tr('写入目标:')}</label>
             <div className="radio-group">
@@ -406,12 +435,6 @@ export default function KeywordSection(props: KeywordSectionProps) {
 
         {showScheduleForm && (
           <div className="schedule-panel">
-            <div className="offline-meta">
-              {tr('已设置')} {keywordScheduleCount} {tr('个定时任务')}
-            </div>
-            <div className="offline-meta">
-              {tr('下次执行')}: {formatTime(keywordScheduleNextRunAt)}
-            </div>
             <ScheduleForm
               tr={tr}
               disabled={offlineBlocked || keywordScheduleSaving}
