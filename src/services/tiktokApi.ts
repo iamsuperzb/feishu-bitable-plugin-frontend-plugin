@@ -193,6 +193,78 @@ export const fetchKeywordVideos = async (
 }
 
 /**
+ * hashtag 搜索
+ *
+ * @param params - 搜索参数
+ *   - keyword: 搜索关键词
+ *   - count: 返回数量
+ *   - offset: 分页偏移
+ *   - region: 地区代码
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON 和处理响应头）
+ */
+export const fetchHashtagSearch = async (
+  params: {
+    keyword: string
+    count: string
+    offset: string
+    region: string
+  },
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/hashtag/search`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.SEARCH }
+  )
+}
+
+/**
+ * hashtag 视频列表
+ *
+ * @param params - 请求参数
+ *   - hashtagId: hashtag ID
+ *   - count: 返回数量
+ *   - offset: 分页偏移
+ *   - region: 地区代码
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON 和处理响应头）
+ */
+export const fetchHashtagPosts = async (
+  params: {
+    hashtagId: string
+    count: string
+    offset: string
+    region: string
+  },
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/hashtag/posts`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.SEARCH }
+  )
+}
+
+/**
  * 用户视频列表
  *
  * @param params - 请求参数
@@ -413,6 +485,41 @@ export const startKeywordOfflineTask = async (
   options: FetchOptions = {}
 ): Promise<Response> => {
   const apiUrl = `${getApiBase()}/api/offline/keyword/start`
+
+  return fetchFn(
+    apiUrl,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: options.signal
+    },
+    { timeout: options.timeout ?? TIMEOUT_CONFIG.SEARCH }
+  )
+}
+
+/**
+ * 发起 hashtag 后台任务
+ *
+ * @param payload - 任务参数
+ * @param fetchFn - 带身份的 fetch 函数
+ * @param options - 请求选项（超时、中止信号）
+ * @returns Response 对象（需要调用方解析 JSON）
+ */
+export const startHashtagOfflineTask = async (
+  payload: {
+    keyword: string
+    region: string
+    baseId: string
+    targetTable: 'current' | 'new'
+    tableId?: string
+    tableName?: string
+    selectedFields?: string[]
+  },
+  fetchFn: FetchWithIdentity,
+  options: FetchOptions = {}
+): Promise<Response> => {
+  const apiUrl = `${getApiBase()}/api/offline/hashtag/start`
 
   return fetchFn(
     apiUrl,
