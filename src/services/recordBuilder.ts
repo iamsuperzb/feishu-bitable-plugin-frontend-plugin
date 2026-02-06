@@ -113,8 +113,11 @@ interface AccountInfoItem {
   username?: string
   accountName?: string
   accountUrl?: string
+  insId?: string
+  bio?: string
   instagramUrl?: string
   youtubeUrl?: string
+  whatsapp?: string
   followers?: number
   likes?: number
   videos?: number
@@ -338,6 +341,7 @@ export const ACCOUNT_VIDEO_MAPPINGS: FieldMapping<AccountVideoItem>[] = [
 export const ACCOUNT_INFO_MAPPINGS: FieldMapping<AccountInfoItem>[] = [
   { name: 'TT账户名称', getValue: info => info.accountName || info.username },
   { name: 'TT账户URL', getValue: info => normalizeAccountKey(info.accountUrl || info.username || info.accountName || '') },
+  { name: 'IG_id', getValue: info => info.insId || '' },
   { name: 'Instagram URL', getValue: info => info.instagramUrl || '' },
   { name: 'YouTube URL', getValue: info => info.youtubeUrl || '' },
   { name: '关注者数量', getValue: info => info.followers ?? 0 },
@@ -346,6 +350,8 @@ export const ACCOUNT_INFO_MAPPINGS: FieldMapping<AccountInfoItem>[] = [
   { name: '平均播放量', getValue: info => info.averagePlayCount ?? 0 },
   { name: '视频互动率', getValue: info => info.interactionRate ?? 0 },
   { name: '电子邮件地址', getValue: info => info.email || '' },
+  { name: '账号简介', getValue: info => info.bio || '' },
+  { name: 'WhatsApp', getValue: info => info.whatsapp || '' },
   { name: '视频创建位置', getValue: info => info.videoLocation || '' },
   { name: '是否有小店', getValue: info => info.hasShop ?? false },
   { name: '最后发帖时间', getValue: info => info.lastPostTime || undefined },

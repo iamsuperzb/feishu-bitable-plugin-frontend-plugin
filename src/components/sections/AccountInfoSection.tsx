@@ -85,6 +85,7 @@ interface AccountInfoSectionProps {
 const ACCOUNT_INFO_FIELD_NAMES = [
   'TT账户名称',
   'TT账户URL',
+  'IG_id',
   'Instagram URL',
   'YouTube URL',
   '关注者数量',
@@ -93,6 +94,8 @@ const ACCOUNT_INFO_FIELD_NAMES = [
   '平均播放量',
   '视频互动率',
   '电子邮件地址',
+  '账号简介',
+  'WhatsApp',
   '视频创建位置',
   '是否有小店',
   '最后发帖时间',

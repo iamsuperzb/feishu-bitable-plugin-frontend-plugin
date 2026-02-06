@@ -37,6 +37,7 @@ import {
   collectExistingKeys,
   createNewTable,
   ensureFields,
+  renameFieldIfExists,
   extractTextFromCell,
   getEmptyRecords,
   isCellValueEmpty,
@@ -381,8 +382,11 @@ interface AccountInfoResponse {
   username: string;
   accountName: string;
   accountUrl: string;
+  insId?: string;
+  bio?: string;
   instagramUrl?: string;
   youtubeUrl?: string;
+  whatsapp?: string;
   followers?: number;
   likes?: number;
   videos?: number;
@@ -474,6 +478,7 @@ const ACCOUNT_REQUIRED_FIELDS = new Set(['视频标题', '视频链接'])
 const ACCOUNT_INFO_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: 'TT账户名称', type: FieldType.Text },
   { field_name: 'TT账户URL', type: FieldType.Url },
+  { field_name: 'IG_id', type: FieldType.Text },
   { field_name: 'Instagram URL', type: FieldType.Url },
   { field_name: 'YouTube URL', type: FieldType.Url },
   { field_name: '关注者数量', type: FieldType.Number },
@@ -482,6 +487,8 @@ const ACCOUNT_INFO_FIELD_CONFIGS: FieldConfig[] = [
   { field_name: '平均播放量', type: FieldType.Number },
   { field_name: '视频互动率', type: FieldType.Number },
   { field_name: '电子邮件地址', type: FieldType.Text },
+  { field_name: '账号简介', type: FieldType.Text },
+  { field_name: 'WhatsApp', type: FieldType.Text },
   { field_name: '视频创建位置', type: FieldType.Text },
   { field_name: '是否有小店', type: FieldType.Checkbox },
   { field_name: '最后发帖时间', type: FieldType.DateTime },
@@ -799,6 +806,7 @@ function App() {
   const [accountInfoSelectedFields, setAccountInfoSelectedFields] = useState<{[key: string]: boolean}>({
     'TT账户名称': true,
     'TT账户URL': true,
+    'IG_id': true,
     'Instagram URL': true,
     'YouTube URL': true,
     '关注者数量': true,
@@ -807,6 +815,8 @@ function App() {
     '平均播放量': true,
     '视频互动率': true,
     '电子邮件地址': true,
+    '账号简介': true,
+    'WhatsApp': true,
     '视频创建位置': true,
     '是否有小店': true,
     '最后发帖时间': true,
@@ -3743,6 +3753,11 @@ function App() {
           shouldUpdateSource = false
         }
 
+        // 兼容旧列：如果表里已有 ins_id，则自动改名为 IG_id 并沿用旧列
+        if (accountInfoSelection['IG_id'] !== false) {
+          await renameFieldIfExists(targetTable, 'ins_id', 'IG_id')
+        }
+
         const fieldMetaList = await ensureFields(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, accountInfoSelection)
         await refreshFields()
         let writers = await buildFieldWriters(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, fieldMetaList, accountInfoSelection)
@@ -3971,6 +3986,11 @@ function App() {
         if (!names.length) {
           setMessage(tr('请输入账号名称'))
           return
+        }
+
+        // 兼容旧列：如果表里已有 ins_id，则自动改名为 IG_id 并沿用旧列
+        if (accountInfoSelection['IG_id'] !== false) {
+          await renameFieldIfExists(targetTable, 'ins_id', 'IG_id')
         }
 
         const fieldMetaList = await ensureFields(targetTable, ACCOUNT_INFO_FIELD_CONFIGS, accountInfoSelection)

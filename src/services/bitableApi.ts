@@ -172,6 +172,39 @@ export const ensureFields = async (
 }
 
 /**
+ * 字段重命名（兼容历史字段名）
+ *
+ * @param table - 表格实例
+ * @param fromName - 旧字段名
+ * @param toName - 新字段名
+ * @returns 是否发生了重命名
+ *
+ * @remarks
+ * - 仅当新字段不存在且旧字段存在时才会重命名
+ * - 用于“沿用旧列但统一新命名”的场景
+ */
+export const renameFieldIfExists = async (
+  table: ITable,
+  fromName: string,
+  toName: string
+): Promise<boolean> => {
+  try {
+    const fieldMetaList = await table.getFieldMetaList()
+    if (fieldMetaList.some(meta => meta.name === toName)) return false
+    const fromMeta = fieldMetaList.find(meta => meta.name === fromName)
+    if (!fromMeta) return false
+
+    await table.setField(fromMeta.id, { name: toName })
+    // 重命名后延迟，确保元数据同步
+    await sleep(500)
+    return true
+  } catch (error) {
+    console.warn('重命名字段失败:', { fromName, toName, error })
+    return false
+  }
+}
+
+/**
  * 构建字段写入器映射
  *
  * @param table - 表格实例
@@ -561,18 +594,6 @@ export const addRecordsInBatches = async (
       if (stopRef?.current) break
 
       const payload = chunk.map(item => ({ fields: item.fields }))
-      console.log(
-        '[DEBUG addRecordsInBatches] payload 样本:',
-        JSON.stringify(payload[0], null, 2)
-      )
-      console.log(
-        '[DEBUG addRecordsInBatches] payload 字段数:',
-        Object.keys(payload[0]?.fields || {}).length
-      )
-      console.log(
-        '[DEBUG addRecordsInBatches] payload 字段ID列表:',
-        Object.keys(payload[0]?.fields || {})
-      )
 
       // 尝试使用批量接口
       const tableWithBatch = table as ITable & {
